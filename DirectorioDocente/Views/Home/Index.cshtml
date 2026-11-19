@@ -1,0 +1,76 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<section class="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+
+    <div class="blob absolute -top-20 -left-20 w-96 h-96 bg-indigo-200/50 rounded-full blur-3xl"></div>
+    <div class="blob absolute -bottom-24 -right-24 w-96 h-96 bg-purple-200/50 rounded-full blur-3xl"></div>
+    <div class="blob absolute top-1/2 left-1/2 w-72 h-72 bg-sky-200/40 rounded-full blur-3xl"></div>
+
+    <div class="relative z-10 max-w-4xl mx-auto px-6 text-center">
+
+        <span data-anim="badge" class="inline-block px-4 py-1.5 mb-6 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-full">
+            Sistema de Gestión Académica
+        </span>
+
+        <h1 data-anim="title" class="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6">
+            Bienvenido a <span class="text-indigo-600">tu panel</span>
+        </h1>
+
+        <p data-anim="subtitle" class="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Administra docentes, gestiona información académica y accede a reportes de manera rápida y sencilla.
+        </p>
+
+        <div data-anim="cta" class="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+            <a asp-area="" asp-controller="Docentes" asp-action="Index"
+               class="btn-primary group inline-flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 transition-colors duration-300">
+                Ver Docentes
+                <svg class="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+            </a>
+
+            <a href="#features"
+               class="inline-flex items-center justify-center px-8 py-4 bg-white text-slate-700 font-semibold rounded-xl border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 shadow-sm transition-colors duration-300">
+                Explorar
+            </a>
+        </div>
+
+        <div id="features" class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div data-anim="card" class="feature-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-slate-800 mb-2">Gestión Académica</h3>
+                <p class="text-sm text-slate-500">Administra la información de docentes de forma centralizada.</p>
+            </div>
+
+            <div data-anim="card" class="feature-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm6 0V7a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-slate-800 mb-2">Reportes</h3>
+                <p class="text-sm text-slate-500">Visualiza estadísticas e información relevante al instante.</p>
+            </div>
+
+            <div data-anim="card" class="feature-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                    <svg class="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-slate-800 mb-2">Rápido y Eficiente</h3>
+                <p class="text-sm text-slate-500">Interfaz optimizada pensada en tu productividad diaria.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/home.js" asp-append-version="true"></script>
+}

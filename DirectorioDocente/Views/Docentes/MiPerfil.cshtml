@@ -1,0 +1,929 @@
+@model DirectorioDocente.Models.MiPerfilViewModel
+
+@{
+    ViewData["Title"] = "Mi Perfil";
+    var esAdmin = Model.Rol == "Administrador";
+    var tieneFoto = !string.IsNullOrEmpty(Model.FotoUrl);
+}
+
+<style>
+    .perfil-field-input {
+        border: 0;
+        background-color: #FFFFFF;
+        color: #172B4D;
+        font-weight: 600;
+        width: 100%;
+        padding: 6px 8px;
+        margin-inline: -8px;
+        border-radius: 6px;
+        transition: background-color 150ms ease, box-shadow 150ms ease;
+    }
+    .perfil-field-input::placeholder {
+        color: #94A3B8;
+        font-weight: 400;
+    }
+    @@media (hover: hover) and (pointer: fine) {
+        .perfil-field-input:hover {
+            background-color: #F8FAFC;
+        }
+    }
+    .perfil-field-input:focus-visible {
+        outline: 2px solid #285EA8;
+        outline-offset: 2px;
+        background-color: #FFFFFF;
+    }
+    @@media (pointer: coarse) {
+        .perfil-field-input {
+            font-size: 16px;
+            min-height: 44px;
+        }
+    }
+
+    .crop-stage-wrap {
+        position: relative;
+        width: min(100%, 280px);
+        aspect-ratio: 1 / 1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #0F172A;
+        cursor: grab;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        border: 1px solid #DCE4ED;
+    }
+    .crop-stage-wrap.dragging {
+        cursor: grabbing;
+    }
+    .crop-stage-wrap:focus-visible {
+        outline: 2px solid #285EA8;
+        outline-offset: 3px;
+    }
+    #cropResizeHandle {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: #FFFFFF;
+        border: 2px solid #285EA8;
+        color: #285EA8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: nwse-resize;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+        transform: translate(-50%, -50%);
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .perfil-range {
+        accent-color: #285EA8;
+        cursor: pointer;
+        min-height: 28px;
+    }
+    @@supports not (accent-color: #285EA8) {
+        .perfil-range {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+        }
+        .perfil-range::-webkit-slider-runnable-track {
+            height: 6px;
+            background: #CBD5E1;
+            border-radius: 999px;
+        }
+        .perfil-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #285EA8;
+            margin-top: -5px;
+        }
+    }
+</style>
+
+<div class="max-w-3xl mx-auto space-y-5 pb-12">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#DCE4ED]">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-md bg-[#172B4D] text-white flex items-center justify-center shrink-0">
+                <icon name="users" class="w-5 h-5 text-white" />
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-[#172B4D]">Mi Perfil @(esAdmin ? "Institucional" : "Docente")</h1>
+                <p class="text-xs text-[#64748B]">Edita tu fotografía, encuadre e información de contacto académica</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-sm @(esAdmin ? "bg-[#172B4D] text-white" : "bg-emerald-50 text-[#0F9F83] border border-[#0F9F83]/30")">
+                Rol: @Model.Rol
+            </span>
+        </div>
+    </div>
+
+    <form id="formMiPerfil" asp-action="MiPerfil" method="post" enctype="multipart/form-data" class="space-y-5">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="Rol" />
+        <input type="hidden" asp-for="NombreUsuario" />
+        <input type="hidden" id="fotoRecortadaBase64" name="fotoRecortadaBase64" value="" />
+        <input type="hidden" id="eliminarFoto" name="eliminarFoto" value="false" />
+
+        <section aria-labelledby="fotoPerfilHeading" class="bg-white rounded-lg border border-[#DCE4ED] shadow-xs overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#DCE4ED] flex flex-wrap items-center justify-between gap-2">
+                <h2 id="fotoPerfilHeading" class="text-sm font-bold text-[#172B4D] flex items-center gap-2">
+                    <icon name="camera" class="w-4 h-4 text-[#285EA8]" />
+                    <span>Fotografía de Perfil</span>
+                </h2>
+                <span class="text-[11px] text-[#64748B]">JPG, PNG o WEBP (máx. 5 MB)</span>
+            </div>
+
+            <div class="p-5 space-y-5">
+                <div class="flex flex-col sm:flex-row items-center gap-5">
+                    <div id="avatarContainer" class="w-24 h-24 rounded-full border-2 border-[#DCE4ED] overflow-hidden bg-[#CBD5E1] flex items-center justify-center shadow-xs shrink-0">
+                        <img id="imgPreview"
+                             src="@(Model.FotoUrl ?? "")"
+                             alt="Foto de perfil de @Model.NombreCompleto"
+                             class="w-full h-full object-cover aspect-square @(tieneFoto ? "" : "hidden")" />
+                        <div id="imgPlaceholder" class="w-full h-full @(tieneFoto ? "hidden" : "")">
+                            <icon name="avatar-default" class="w-full h-full" />
+                        </div>
+                    </div>
+
+                    <div class="flex-1 space-y-2.5 w-full text-center sm:text-left">
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                            <label class="touch-target cursor-pointer gap-2 px-4 py-2 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md transition shadow-xs">
+                                <icon name="upload" class="w-3.5 h-3.5 text-white shrink-0" />
+                                <span>Seleccionar fotografía</span>
+                                <input type="file" id="fotoArchivo" name="fotoArchivo"
+                                       accept=".jpg,.jpeg,.png,.webp"
+                                       class="visually-hidden"
+                                       onchange="cargarImagenArchivo(event)" />
+                            </label>
+
+                            <button type="button" id="btnAbrirEditorFoto" onclick="toggleEditorFoto()"
+                                    class="touch-target gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-[#172B4D] text-xs font-semibold rounded-md border border-[#DCE4ED] transition @(tieneFoto ? "" : "hidden")">
+                                <icon name="pencil" class="w-3.5 h-3.5 text-[#285EA8]" />
+                                <span id="txtBtnEditorFoto">Editar encuadre</span>
+                            </button>
+
+                            <button type="button" id="btnQuitarFoto" onclick="quitarFotoPerfil()"
+                                    class="touch-target gap-1.5 px-3 py-2 bg-white hover:bg-rose-50 text-[#C2414B] text-xs font-semibold rounded-md border border-[#DCE4ED] transition @(tieneFoto ? "" : "hidden")">
+                                <icon name="trash-2" class="w-3.5 h-3.5 text-[#C2414B]" />
+                                <span>Quitar foto</span>
+                            </button>
+                        </div>
+
+                        <p class="text-[11px] text-[#64748B]">
+                            Puedes girar, invertir, hacer zoom y ajustar libremente el tamaño de captura sobre el encuadre. Si no agregas imagen, se mostrará el avatar gris predeterminado.
+                        </p>
+                    </div>
+                </div>
+
+                <div id="cropEditorPanel" class="hidden pt-4 border-t border-[#DCE4ED]">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+
+                        <div class="md:col-span-6 flex flex-col items-center space-y-2.5 min-w-0">
+                            <div id="cropStageWrap"
+                                 class="crop-stage-wrap mx-auto"
+                                 tabindex="0"
+                                 role="application"
+                                 aria-label="Área de encuadre de fotografía. Arrastra la imagen o usa las teclas de flecha para mover el encuadre.">
+                                <canvas id="cropCanvas" width="320" height="320" class="w-full h-full block"></canvas>
+                                <button type="button" id="cropResizeHandle"
+                                        aria-label="Redimensionar tamaño del área de captura"
+                                        title="Arrastra para ajustar el tamaño de captura">⤢</button>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-center gap-1.5" role="group" aria-label="Mover encuadre con un toque">
+                                <button type="button" onclick="moverEncuadre(-12, 0)" aria-label="Mover imagen a la izquierda"
+                                        class="touch-target px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-[#172B4D] rounded-md border border-[#DCE4ED] text-xs font-bold">←</button>
+                                <button type="button" onclick="moverEncuadre(0, -12)" aria-label="Mover imagen hacia arriba"
+                                        class="touch-target px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-[#172B4D] rounded-md border border-[#DCE4ED] text-xs font-bold">↑</button>
+                                <button type="button" onclick="centrarEncuadre()" aria-label="Centrar encuadre"
+                                        class="touch-target px-2.5 py-1 bg-white hover:bg-slate-50 text-[#285EA8] rounded-md border border-[#DCE4ED] text-[11px] font-bold">Centrar</button>
+                                <button type="button" onclick="moverEncuadre(0, 12)" aria-label="Mover imagen hacia abajo"
+                                        class="touch-target px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-[#172B4D] rounded-md border border-[#DCE4ED] text-xs font-bold">↓</button>
+                                <button type="button" onclick="moverEncuadre(12, 0)" aria-label="Mover imagen a la derecha"
+                                        class="touch-target px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-[#172B4D] rounded-md border border-[#DCE4ED] text-xs font-bold">→</button>
+                            </div>
+
+                            <div id="cropLiveStatus" class="visually-hidden" aria-live="polite"></div>
+                        </div>
+
+                        <div class="md:col-span-6 space-y-4 bg-[#E9EFF6]/60 p-4 rounded-md border border-[#DCE4ED] min-w-0 w-full">
+                            <div>
+                                <p class="text-[11px] font-bold text-[#172B4D] uppercase tracking-wider mb-2">Orientación</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" onclick="rotarImagen(-90)"
+                                            class="touch-target gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] rounded-md text-xs font-semibold transition">
+                                        <icon name="rotate-tool" class="w-4 h-4 text-[#172B4D] shrink-0" />
+                                        <span>Girar -90°</span>
+                                    </button>
+                                    <button type="button" onclick="rotarImagen(90)"
+                                            class="touch-target gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] rounded-md text-xs font-semibold transition">
+                                        <icon name="rotate-tool" class="w-4 h-4 text-[#172B4D] shrink-0" style="transform: scaleX(-1);" />
+                                        <span>Girar +90°</span>
+                                    </button>
+                                    <button type="button" onclick="invertirImagen('h')"
+                                            class="touch-target gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] rounded-md text-xs font-semibold transition">
+                                        <icon name="flip-horizontal" class="w-4 h-4 text-[#285EA8] shrink-0" />
+                                        <span>Invertir H</span>
+                                    </button>
+                                    <button type="button" onclick="invertirImagen('v')"
+                                            class="touch-target gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] rounded-md text-xs font-semibold transition">
+                                        <icon name="flip-vertical" class="w-4 h-4 text-[#285EA8] shrink-0" />
+                                        <span>Invertir V</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between text-xs">
+                                    <label for="zoomRange" class="font-bold text-[#172B4D] inline-flex items-center gap-1.5">
+                                        <icon name="zoom" class="w-4 h-4 text-[#285EA8] shrink-0" />
+                                        <span>Zoom</span>
+                                    </label>
+                                    <span id="zoomValor" class="font-mono font-bold text-[#285EA8] tabular-nums">100%</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" id="btnZoomOut" onclick="ajustarZoomDelta(-10)" aria-label="Alejar zoom"
+                                            class="touch-target px-2.5 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] rounded-md font-bold text-xs">−</button>
+                                    <input type="range" id="zoomRange" min="50" max="300" value="100" step="2"
+                                           class="perfil-range flex-1 min-w-0" oninput="ajustarZoomValor(this.value)" />
+                                    <button type="button" id="btnZoomIn" onclick="ajustarZoomDelta(10)" aria-label="Acercar zoom"
+                                            class="touch-target px-2.5 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] rounded-md font-bold text-xs">+</button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between text-xs">
+                                    <label for="frameSizeRange" class="font-bold text-[#172B4D]">Tamaño de captura</label>
+                                    <span id="frameSizeValor" class="font-mono font-bold text-[#172B4D] tabular-nums">88%</span>
+                                </div>
+                                <input type="range" id="frameSizeRange" min="55" max="100" value="88" step="1"
+                                       class="perfil-range w-full" oninput="ajustarTamanoMarco(this.value)" />
+                            </div>
+
+                            <div class="pt-1 flex justify-end">
+                                <button type="button" onclick="restablecerEditorFoto()"
+                                        class="touch-target px-3 py-1.5 bg-white hover:bg-slate-100 text-[#64748B] border border-[#DCE4ED] rounded-md text-xs font-semibold transition">
+                                    Restablecer encuadre
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section aria-label="Identidad principal" class="bg-white rounded-lg border border-[#DCE4ED] shadow-xs divide-y divide-[#DCE4ED] overflow-hidden text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="NombreCompleto" class="sm:col-span-4 font-medium text-[#64748B]">Nombre completo</label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <input asp-for="NombreCompleto" autocomplete="name"
+                               placeholder="Ingresa tu nombre completo"
+                               class="perfil-field-input text-sm" />
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="NombreCompleto"
+                                aria-label="Editar nombre completo"
+                                title="Editar nombre completo">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                    <span asp-validation-for="NombreCompleto" class="text-[11px] text-[#C2414B] block mt-0.5"></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label for="perfilMatriculaReadonly" class="sm:col-span-4 font-medium text-[#64748B]">
+                    @(esAdmin ? "Usuario del sistema" : "Matrícula institucional")
+                </label>
+                <div class="sm:col-span-8 flex items-center justify-between gap-2 min-w-0">
+                    <input type="text" id="perfilMatriculaReadonly" value="@Model.NombreUsuario" readonly
+                           class="border-0 bg-white text-[#172B4D] font-mono font-semibold text-xs py-1.5 px-0 focus:outline-none min-w-0" />
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-sm bg-slate-100 text-[#64748B] shrink-0">Solo lectura</span>
+                </div>
+            </div>
+        </section>
+
+        <section aria-labelledby="infoPerfilHeading" class="bg-white rounded-lg border border-[#DCE4ED] shadow-xs divide-y divide-[#DCE4ED] overflow-hidden text-xs">
+            <div class="px-5 py-3.5">
+                <h2 id="infoPerfilHeading" class="text-sm font-bold text-[#172B4D]">Información del perfil</h2>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="Correo" class="sm:col-span-4 font-medium text-[#64748B]">Correo institucional</label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <input asp-for="Correo" type="email" autocomplete="email"
+                               autocorrect="off" autocapitalize="none" spellcheck="false"
+                               placeholder="nombre@upvm.edu.mx"
+                               class="perfil-field-input text-xs" />
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="Correo"
+                                aria-label="Editar correo institucional"
+                                title="Editar correo institucional">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                    <span asp-validation-for="Correo" class="text-[11px] text-[#C2414B] block mt-0.5"></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="Telefono" class="sm:col-span-4 font-medium text-[#64748B]">Teléfono de contacto</label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <input asp-for="Telefono" type="tel" autocomplete="tel"
+                               placeholder="Agregar número telefónico"
+                               class="perfil-field-input text-xs tabular-nums" />
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="Telefono"
+                                aria-label="Editar teléfono de contacto"
+                                title="Editar teléfono de contacto">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="TituloCargoOGrado" class="sm:col-span-4 font-medium text-[#64748B]">
+                    @(esAdmin ? "Cargo institucional" : "Grado / Título académico")
+                </label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <input asp-for="TituloCargoOGrado" autocomplete="organization-title"
+                               placeholder="@(esAdmin ? "Director de División Académica" : "ej. Dr. en Computación, Mtra. en Educación")"
+                               class="perfil-field-input text-xs" />
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="TituloCargoOGrado"
+                                aria-label="Editar grado o cargo"
+                                title="Editar grado o cargo">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="Cubiculo" class="sm:col-span-4 font-medium text-[#64748B]">Cubículo / Ubicación</label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <input asp-for="Cubiculo"
+                               placeholder="ej. Edificio C, Cubículo 14 (Lun-Vie 9:00 - 14:00)"
+                               class="perfil-field-input text-xs" />
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="Cubiculo"
+                                aria-label="Editar cubículo o ubicación"
+                                title="Editar cubículo o ubicación">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="Especialidad" class="sm:col-span-4 font-medium text-[#64748B]">Academia o especialidad</label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <input asp-for="Especialidad"
+                               placeholder="ej. Academia de Redes / Inteligencia Artificial"
+                               class="perfil-field-input text-xs" />
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="Especialidad"
+                                aria-label="Editar academia o especialidad"
+                                title="Editar academia o especialidad">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-start gap-1 sm:gap-4 px-5 py-3">
+                <label asp-for="Biografia" class="sm:col-span-4 font-medium text-[#64748B] sm:pt-1.5">Semblanza / Biografía</label>
+                <div class="sm:col-span-8 min-w-0">
+                    <div class="flex items-start gap-2">
+                        <textarea asp-for="Biografia" rows="2"
+                                  style="field-sizing: content; height: auto; width: 100%; min-block-size: 3lh; max-block-size: 10lh;"
+                                  placeholder="Breve resumen de tu trayectoria docente o áreas de interés..."
+                                  class="perfil-field-input text-xs resize-none"></textarea>
+                        <button type="button"
+                                class="perfil-pencil-btn touch-target text-[#64748B] hover:text-[#285EA8] hover:bg-slate-100 rounded-md shrink-0"
+                                data-focus-target="Biografia"
+                                aria-label="Editar semblanza o biografía"
+                                title="Editar semblanza o biografía">
+                            <icon name="pencil" class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 sm:items-center gap-1 sm:gap-4 px-5 py-3 bg-slate-50/70">
+                <span class="sm:col-span-4 font-medium text-[#64748B]">Tipo de contrato</span>
+                <div class="sm:col-span-8 flex items-center justify-between gap-2">
+                    <span class="font-semibold text-[#172B4D]">@(Model.TipoContrato ?? "Personal Directivo")</span>
+                    <span class="text-[11px] text-[#64748B]">Datos institucionales protegidos</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="flex flex-wrap items-center justify-end gap-3 pt-1">
+            <a asp-action="@(esAdmin ? "Index" : "MisActividades")"
+               class="touch-target px-5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-md border border-[#DCE4ED] transition">
+                Volver
+            </a>
+
+            <button type="submit" id="btnGuardarPerfil" disabled
+                    class="touch-target gap-2 px-6 py-2 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                <icon name="check" class="w-4 h-4 text-white" />
+                <span id="btnGuardarPerfilTexto">Guardar Cambios de Perfil</span>
+            </button>
+        </div>
+    </form>
+
+</div>
+
+@section Scripts {
+    <script>
+        const camposPerfil = ['NombreCompleto', 'Correo', 'Telefono', 'TituloCargoOGrado', 'Cubiculo', 'Especialidad', 'Biografia'];
+        const valoresInicialesPerfil = {};
+
+        const CANVAS_SIZE = 320;
+        const EXPORT_SIZE = 512;
+
+        let cropImg = null;
+        let cropZoom = 1;
+        let cropRotation = 0;
+        let cropFlipH = 1;
+        let cropFlipV = 1;
+        let cropPanX = 0;
+        let cropPanY = 0;
+        let cropFrameRatio = 0.88;
+        let fotoModificada = false;
+
+        function anunciarEstadoRecorte(texto) {
+            const live = document.getElementById('cropLiveStatus');
+            if (live) live.textContent = texto;
+        }
+
+        function getBaseCoverScale() {
+            if (!cropImg || !cropImg.naturalWidth || !cropImg.naturalHeight) return 1;
+            const rotado90 = Math.abs(cropRotation % 180) === 90;
+            const w = rotado90 ? cropImg.naturalHeight : cropImg.naturalWidth;
+            const h = rotado90 ? cropImg.naturalWidth : cropImg.naturalHeight;
+            return Math.max(CANVAS_SIZE / w, CANVAS_SIZE / h);
+        }
+
+        function actualizarPosicionHandleMarco() {
+            const handle = document.getElementById('cropResizeHandle');
+            if (!handle) return;
+            const radiusRatio = cropFrameRatio / 2;
+            const offset = radiusRatio * Math.SQRT1_2;
+            handle.style.left = `${(0.5 + offset) * 100}%`;
+            handle.style.top  = `${(0.5 + offset) * 100}%`;
+        }
+
+        function renderCropCanvas() {
+            const canvas = document.getElementById('cropCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.fillStyle = '#0F172A';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            if (cropImg) {
+                const scale = getBaseCoverScale() * cropZoom;
+                ctx.save();
+                ctx.translate(CANVAS_SIZE / 2 + cropPanX, CANVAS_SIZE / 2 + cropPanY);
+                ctx.rotate((cropRotation * Math.PI) / 180);
+                ctx.scale(cropFlipH * scale, cropFlipV * scale);
+                ctx.drawImage(cropImg, -cropImg.naturalWidth / 2, -cropImg.naturalHeight / 2);
+                ctx.restore();
+            }
+
+            const radius = (CANVAS_SIZE * cropFrameRatio) / 2;
+            const cx = CANVAS_SIZE / 2;
+            const cy = CANVAS_SIZE / 2;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.58)';
+            ctx.beginPath();
+            ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2, true);
+            ctx.fill('evenodd');
+
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+            ctx.lineWidth = 1;
+            const minX = cx - radius;
+            const minY = cy - radius;
+            const d = radius * 2;
+            for (const f of [1 / 3, 2 / 3]) {
+                ctx.beginPath();
+                ctx.moveTo(minX + d * f, minY);
+                ctx.lineTo(minX + d * f, minY + d);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(minX, minY + d * f);
+                ctx.lineTo(minX + d, minY + d * f);
+                ctx.stroke();
+            }
+            ctx.restore();
+            ctx.restore();
+
+            actualizarPosicionHandleMarco();
+        }
+
+        function exportCroppedAvatar(marcarCambio = true) {
+            if (!cropImg || !cropImg.naturalWidth) return;
+
+            const offscreen = document.createElement('canvas');
+            offscreen.width = EXPORT_SIZE;
+            offscreen.height = EXPORT_SIZE;
+            const ctx = offscreen.getContext('2d');
+            if (!ctx) return;
+
+            const cropDiameter = CANVAS_SIZE * cropFrameRatio;
+            const exportScale = EXPORT_SIZE / cropDiameter;
+            const scale = getBaseCoverScale() * cropZoom * exportScale;
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
+
+            ctx.save();
+            ctx.translate(EXPORT_SIZE / 2 + cropPanX * exportScale, EXPORT_SIZE / 2 + cropPanY * exportScale);
+            ctx.rotate((cropRotation * Math.PI) / 180);
+            ctx.scale(cropFlipH * scale, cropFlipV * scale);
+            ctx.drawImage(cropImg, -cropImg.naturalWidth / 2, -cropImg.naturalHeight / 2);
+            ctx.restore();
+
+            const dataUrl = offscreen.toDataURL('image/jpeg', 0.92);
+
+            const imgPreview = document.getElementById('imgPreview');
+            const placeholder = document.getElementById('imgPlaceholder');
+            const hiddenBase64 = document.getElementById('fotoRecortadaBase64');
+            const hiddenEliminar = document.getElementById('eliminarFoto');
+
+            if (imgPreview) {
+                imgPreview.src = dataUrl;
+                imgPreview.classList.remove('hidden');
+            }
+            if (placeholder) placeholder.classList.add('hidden');
+            if (hiddenBase64) hiddenBase64.value = dataUrl;
+            if (hiddenEliminar) hiddenEliminar.value = 'false';
+
+            if (marcarCambio) {
+                fotoModificada = true;
+                verificarCambiosPerfil();
+            }
+        }
+
+        function cargarImagenEnEstudio(src, esNuevaFoto) {
+            const img = new Image();
+            img.onload = () => {
+                cropImg = img;
+                cropZoom = 1;
+                cropRotation = 0;
+                cropFlipH = 1;
+                cropFlipV = 1;
+                cropPanX = 0;
+                cropPanY = 0;
+                cropFrameRatio = 0.88;
+
+                document.getElementById('zoomRange').value = 100;
+                document.getElementById('zoomValor').textContent = '100%';
+                document.getElementById('frameSizeRange').value = 88;
+                document.getElementById('frameSizeValor').textContent = '88%';
+
+                document.getElementById('cropEditorPanel').classList.remove('hidden');
+                document.getElementById('btnAbrirEditorFoto').classList.remove('hidden');
+                document.getElementById('btnQuitarFoto').classList.remove('hidden');
+                document.getElementById('txtBtnEditorFoto').textContent = 'Ocultar editor';
+
+                renderCropCanvas();
+                if (esNuevaFoto) {
+                    exportCroppedAvatar(true);
+                }
+            };
+            img.src = src;
+        }
+
+        function cargarImagenArchivo(event) {
+            const input = event.target;
+            if (!input.files || input.files.length === 0) return;
+
+            const file = input.files[0];
+            if (file.size > 5 * 1024 * 1024) {
+                alert('La fotografía supera el tamaño máximo de 5 MB.');
+                input.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                cargarImagenEnEstudio(e.target.result, true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function toggleEditorFoto() {
+            const panel = document.getElementById('cropEditorPanel');
+            const txt = document.getElementById('txtBtnEditorFoto');
+            if (!panel) return;
+
+            const estaOculto = panel.classList.contains('hidden');
+            if (estaOculto) {
+                const imgPreview = document.getElementById('imgPreview');
+                if (!cropImg && imgPreview && imgPreview.getAttribute('src')) {
+                    cargarImagenEnEstudio(imgPreview.getAttribute('src'), false);
+                    return;
+                }
+                panel.classList.remove('hidden');
+                if (txt) txt.textContent = 'Ocultar editor';
+                renderCropCanvas();
+            } else {
+                panel.classList.add('hidden');
+                if (txt) txt.textContent = 'Editar encuadre';
+            }
+        }
+
+        function quitarFotoPerfil() {
+            cropImg = null;
+            fotoModificada = true;
+            document.getElementById('fotoArchivo').value = '';
+            document.getElementById('fotoRecortadaBase64').value = '';
+            document.getElementById('eliminarFoto').value = 'true';
+
+            const imgPreview = document.getElementById('imgPreview');
+            const placeholder = document.getElementById('imgPlaceholder');
+            if (imgPreview) {
+                imgPreview.src = '';
+                imgPreview.classList.add('hidden');
+            }
+            if (placeholder) placeholder.classList.remove('hidden');
+
+            document.getElementById('cropEditorPanel').classList.add('hidden');
+            document.getElementById('btnAbrirEditorFoto').classList.add('hidden');
+            document.getElementById('btnQuitarFoto').classList.add('hidden');
+            verificarCambiosPerfil();
+        }
+
+        function rotarImagen(grados) {
+            if (!cropImg) return;
+            cropRotation = (cropRotation + grados) % 360;
+            renderCropCanvas();
+            exportCroppedAvatar(true);
+            anunciarEstadoRecorte(`Imagen girada ${cropRotation} grados`);
+        }
+
+        function invertirImagen(eje) {
+            if (!cropImg) return;
+            if (eje === 'h') cropFlipH *= -1;
+            else cropFlipV *= -1;
+            renderCropCanvas();
+            exportCroppedAvatar(true);
+            anunciarEstadoRecorte(eje === 'h' ? 'Imagen invertida horizontalmente' : 'Imagen invertida verticalmente');
+        }
+
+        function ajustarZoomValor(val) {
+            const num = Math.max(50, Math.min(300, parseInt(val, 10) || 100));
+            cropZoom = num / 100;
+            document.getElementById('zoomRange').value = num;
+            document.getElementById('zoomValor').textContent = `${num}%`;
+            if (cropImg) {
+                renderCropCanvas();
+                exportCroppedAvatar(true);
+            }
+        }
+
+        function ajustarZoomDelta(delta) {
+            const actual = parseInt(document.getElementById('zoomRange').value || '100', 10);
+            ajustarZoomValor(actual + delta);
+        }
+
+        function ajustarTamanoMarco(val) {
+            const num = Math.max(55, Math.min(100, parseInt(val, 10) || 88));
+            cropFrameRatio = num / 100;
+            document.getElementById('frameSizeRange').value = num;
+            document.getElementById('frameSizeValor').textContent = `${num}%`;
+            if (cropImg) {
+                renderCropCanvas();
+                exportCroppedAvatar(true);
+            }
+        }
+
+        function moverEncuadre(dx, dy) {
+            if (!cropImg) return;
+            cropPanX = Math.max(-220, Math.min(220, cropPanX + dx));
+            cropPanY = Math.max(-220, Math.min(220, cropPanY + dy));
+            renderCropCanvas();
+            exportCroppedAvatar(true);
+            anunciarEstadoRecorte('Posición de encuadre actualizada');
+        }
+
+        function centrarEncuadre() {
+            if (!cropImg) return;
+            cropPanX = 0;
+            cropPanY = 0;
+            renderCropCanvas();
+            exportCroppedAvatar(true);
+            anunciarEstadoRecorte('Encuadre centrado');
+        }
+
+        function restablecerEditorFoto() {
+            if (!cropImg) return;
+            cropZoom = 1;
+            cropRotation = 0;
+            cropFlipH = 1;
+            cropFlipV = 1;
+            cropPanX = 0;
+            cropPanY = 0;
+            cropFrameRatio = 0.88;
+            document.getElementById('zoomRange').value = 100;
+            document.getElementById('zoomValor').textContent = '100%';
+            document.getElementById('frameSizeRange').value = 88;
+            document.getElementById('frameSizeValor').textContent = '88%';
+            renderCropCanvas();
+            exportCroppedAvatar(true);
+            anunciarEstadoRecorte('Encuadre restablecido');
+        }
+
+        function verificarCambiosPerfil() {
+            let haCambiado = fotoModificada;
+
+            if (!haCambiado) {
+                for (const c of camposPerfil) {
+                    const el = document.getElementById(c);
+                    if (el && el.value.trim() !== (valoresInicialesPerfil[c] || '')) {
+                        haCambiado = true;
+                        break;
+                    }
+                }
+            }
+
+            const fileInput = document.getElementById('fotoArchivo');
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                haCambiado = true;
+            }
+
+            const btn = document.getElementById('btnGuardarPerfil');
+            if (btn) {
+                btn.disabled = !haCambiado;
+                btn.classList.toggle('opacity-40', !haCambiado);
+                btn.classList.toggle('cursor-not-allowed', !haCambiado);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            camposPerfil.forEach(c => {
+                const el = document.getElementById(c);
+                if (el) valoresInicialesPerfil[c] = el.value.trim();
+            });
+
+            document.querySelectorAll('.perfil-pencil-btn[data-focus-target]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.getAttribute('data-focus-target');
+                    const targetEl = targetId ? document.getElementById(targetId) : null;
+                    if (!targetEl) return;
+                    targetEl.focus();
+                    try {
+                        if (typeof targetEl.setSelectionRange === 'function' && targetEl.type !== 'email') {
+                            const len = targetEl.value.length;
+                            targetEl.setSelectionRange(len, len);
+                        }
+                    } catch {
+                    }
+                });
+            });
+
+            const stage = document.getElementById('cropStageWrap');
+            const resizeHandle = document.getElementById('cropResizeHandle');
+
+            if (stage) {
+                let dragMode = null;
+                let startClientX = 0;
+                let startClientY = 0;
+                let startPanX = 0;
+                let startPanY = 0;
+
+                stage.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0 || !cropImg) return;
+                    if (e.target.closest('#cropResizeHandle')) return;
+                    dragMode = 'pan';
+                    startClientX = e.clientX;
+                    startClientY = e.clientY;
+                    startPanX = cropPanX;
+                    startPanY = cropPanY;
+                    stage.classList.add('dragging');
+                    stage.setPointerCapture(e.pointerId);
+                });
+
+                stage.addEventListener('pointermove', (e) => {
+                    if (dragMode !== 'pan' || !stage.hasPointerCapture(e.pointerId)) return;
+                    const rect = stage.getBoundingClientRect();
+                    const scaleFactor = CANVAS_SIZE / Math.max(1, rect.width);
+                    cropPanX = Math.max(-220, Math.min(220, startPanX + (e.clientX - startClientX) * scaleFactor));
+                    cropPanY = Math.max(-220, Math.min(220, startPanY + (e.clientY - startClientY) * scaleFactor));
+                    renderCropCanvas();
+                });
+
+                const terminarPan = () => {
+                    if (dragMode === 'pan') {
+                        dragMode = null;
+                        stage.classList.remove('dragging');
+                        exportCroppedAvatar(true);
+                    }
+                };
+                stage.addEventListener('lostpointercapture', terminarPan);
+                stage.addEventListener('pointerup', terminarPan);
+
+                stage.addEventListener('wheel', (e) => {
+                    if (!cropImg) return;
+                    e.preventDefault();
+                    ajustarZoomDelta(e.deltaY < 0 ? 8 : -8);
+                }, { passive: false });
+
+                stage.addEventListener('keydown', (e) => {
+                    if (!cropImg) return;
+                    const paso = 10;
+                    if (e.key === 'ArrowLeft') { e.preventDefault(); moverEncuadre(-paso, 0); }
+                    else if (e.key === 'ArrowRight') { e.preventDefault(); moverEncuadre(paso, 0); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); moverEncuadre(0, -paso); }
+                    else if (e.key === 'ArrowDown') { e.preventDefault(); moverEncuadre(0, paso); }
+                });
+            }
+
+            if (resizeHandle && stage) {
+                resizeHandle.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0 || !cropImg) return;
+                    e.stopPropagation();
+                    resizeHandle.setPointerCapture(e.pointerId);
+                });
+
+                resizeHandle.addEventListener('pointermove', (e) => {
+                    if (!resizeHandle.hasPointerCapture(e.pointerId)) return;
+                    const rect = stage.getBoundingClientRect();
+                    const cx = rect.left + rect.width / 2;
+                    const cy = rect.top + rect.height / 2;
+                    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+                    const maxR = rect.width / 2;
+                    const pct = Math.max(55, Math.min(100, Math.round((dist / Math.max(1, maxR)) * 100)));
+                    ajustarTamanoMarco(pct);
+                });
+
+                resizeHandle.addEventListener('lostpointercapture', () => {
+                    exportCroppedAvatar(true);
+                    anunciarEstadoRecorte(`Tamaño de captura ajustado al ${Math.round(cropFrameRatio * 100)} por ciento`);
+                });
+            }
+
+            const form = document.getElementById('formMiPerfil');
+            if (form) {
+                form.addEventListener('input', verificarCambiosPerfil);
+                form.addEventListener('change', verificarCambiosPerfil);
+                form.addEventListener('submit', () => {
+                    if (cropImg && fotoModificada) {
+                        exportCroppedAvatar(false);
+                    }
+                    const btn = document.getElementById('btnGuardarPerfil');
+                    const txt = document.getElementById('btnGuardarPerfilTexto');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.classList.add('opacity-40', 'cursor-not-allowed');
+                        if (txt) txt.textContent = 'Guardando cambios...';
+                    }
+                });
+            }
+
+            verificarCambiosPerfil();
+        });
+    </script>
+}

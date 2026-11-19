@@ -1,0 +1,1027 @@
+@model IEnumerable<DirectorioDocente.Models.ActividadDocente>
+
+@{
+    ViewData["Title"] = "Mis Compromisos Docentes";
+    var docente = ViewBag.Docente as DirectorioDocente.Models.Docente;
+    var esAdmin = User.IsInRole("Administrador");
+    var hoy = DateTime.Now;
+    var hoyFecha = DateTime.Today;
+    var ayerFecha = hoyFecha.AddDays(-1);
+
+    var lista = Model.ToList();
+    var total      = lista.Count;
+    var cumplidas  = lista.Count(a => a.Estatus == "Cumplido");
+    var retraso    = lista.Count(a => a.Estatus != "Cumplido" && a.FechaLimite < hoy);
+    var recientes  = lista.Count(a => a.FechaAsignacion.Date >= hoyFecha);
+    var ayer       = lista.Count(a => a.FechaAsignacion.Date == ayerFecha);
+    var anteriores = lista.Count(a => a.FechaAsignacion.Date < ayerFecha);
+    var porcentaje = total > 0 ? (int)((cumplidas / (double)total) * 100) : 100;
+}
+
+<style>
+    .act-card-btn {
+        transition: border-color 180ms ease, box-shadow 220ms var(--ease-out);
+    }
+    .act-card-accent {
+        transform-origin: left center;
+        will-change: transform;
+    }
+    .act-card-status,
+    .act-card-arrow {
+        will-change: transform;
+    }
+    @@media (hover: hover) and (pointer: fine) {
+        .act-card-btn:hover,
+        .act-card-btn:focus-visible {
+            border-color: rgba(40, 94, 168, 0.5);
+            box-shadow: 0 8px 20px -6px rgba(23, 43, 77, 0.1);
+        }
+        .act-card-arrow {
+            opacity: 0.45;
+        }
+    }
+    @@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+        .act-card-accent {
+            transform: scaleX(0.32);
+        }
+    }
+    @@media (hover: none) {
+        .act-card-arrow {
+            opacity: 1;
+        }
+    }
+
+    #modalActividadDocente::backdrop {
+        background-color: rgba(15, 23, 42, 0);
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+        transition-property: background-color, backdrop-filter, -webkit-backdrop-filter, display, overlay;
+        transition-duration: 0.28s;
+        transition-timing-function: ease-out;
+        transition-behavior: allow-discrete;
+    }
+    #modalActividadDocente[open]:where(:not([data-closing]))::backdrop {
+        background-color: rgba(15, 23, 42, 0.62);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+    }
+    @@starting-style {
+        #modalActividadDocente[open]:where(:not([data-closing]))::backdrop {
+            background-color: rgba(15, 23, 42, 0);
+            backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(0px);
+        }
+    }
+    @@media (prefers-reduced-motion: reduce) {
+        #modalActividadDocente::backdrop {
+            transition-duration: 0.1s;
+        }
+    }
+
+    .chips-scroller {
+        scroll-snap-type: x mandatory;
+        touch-action: pan-y;
+        scrollbar-width: none;
+    }
+    .chips-scroller::-webkit-scrollbar {
+        display: none;
+    }
+    .chips-scroller > * {
+        scroll-snap-align: start;
+    }
+</style>
+
+<div class="space-y-5 max-w-4xl mx-auto pb-12">
+
+    @if (esAdmin || docente == null)
+    {
+        <div class="bg-white p-4 rounded-lg border border-[#DCE4ED] shadow-xs">
+            <h2 class="text-xs font-bold text-[#172B4D] mb-1">Consultar Actividades por Matrícula</h2>
+            <p class="text-[11px] text-[#64748B] mb-2.5">Supervisión directa de compromisos académicos por profesor.</p>
+            <form method="get" asp-action="MisActividades" class="flex gap-2">
+                <input type="text" name="matricula" value="@ViewBag.Matricula" required
+                       placeholder="Ingresa la matrícula del docente (ej. D-101)..."
+                       class="flex-1 px-3 py-1.5 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none" />
+                <button type="submit"
+                        class="touch-target gap-1.5 px-4 py-1.5 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-semibold rounded-md transition shadow-xs">
+                    <icon name="search" class="w-3.5 h-3.5 text-white" />
+                    <span>Consultar</span>
+                </button>
+            </form>
+            @if (ViewBag.Error != null)
+            {
+                <p class="text-xs text-[#C2414B] font-medium mt-2">@ViewBag.Error</p>
+            }
+        </div>
+    }
+
+    @if (docente != null)
+    {
+        <div class="bg-white p-4 rounded-lg border border-[#DCE4ED] shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-3.5 min-w-0 w-full md:w-auto">
+                <div class="w-12 h-12 rounded-full overflow-hidden border border-[#DCE4ED] bg-[#CBD5E1] flex items-center justify-center shrink-0">
+                    @if (!string.IsNullOrEmpty(docente.FotoUrl))
+                    {
+                        <img src="@docente.FotoUrl" alt="@docente.NombreCompleto" loading="lazy" decoding="async" class="w-full h-full object-cover aspect-square" />
+                    }
+                    else
+                    {
+                        <icon name="avatar-default" class="w-full h-full" />
+                    }
+                </div>
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 class="text-base font-bold text-[#172B4D] truncate">@docente.NombreCompleto</h1>
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-sm bg-[#E9EFF6] text-[#285EA8]">
+                            @docente.TipoContrato
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-[#64748B] font-mono mt-0.5 tabular-nums truncate">
+                        Matrícula: @docente.ClaveDocente &nbsp;·&nbsp; @docente.CorreoInstitucional
+                        @if (!string.IsNullOrEmpty(docente.TituloAcademico))
+                        {
+                            <span>&nbsp;·&nbsp; @docente.TituloAcademico</span>
+                        }
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                <div class="flex items-center gap-3 bg-[#E9EFF6] rounded-md px-3 py-1.5 text-xs tabular-nums">
+                    <div class="text-center">
+                        <p class="text-[10px] text-[#64748B] font-bold">Total</p>
+                        <p class="font-bold text-[#172B4D]">@total</p>
+                    </div>
+                    <div class="border-l border-[#DCE4ED] pl-3 text-center">
+                        <p class="text-[10px] text-[#0F9F83] font-bold">Cumplidas</p>
+                        <p class="font-bold text-[#0F9F83]">@cumplidas</p>
+                    </div>
+                    <div class="border-l border-[#DCE4ED] pl-3 text-center">
+                        <p class="text-[10px] text-[#D97745] font-bold">Atrasadas</p>
+                        <p class="font-bold text-[#D97745]">@retraso</p>
+                    </div>
+                    <div class="border-l border-[#DCE4ED] pl-3 text-center">
+                        <p class="text-[10px] text-[#285EA8] font-bold">Avance</p>
+                        <p class="font-bold text-[#285EA8]">@porcentaje%</p>
+                    </div>
+                </div>
+
+                <a asp-action="MiPerfil"
+                   class="touch-target gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-[#172B4D] border border-[#DCE4ED] text-xs font-semibold rounded-md shadow-xs"
+                   title="Editar mi información personal y foto">
+                    <icon name="users" class="w-3.5 h-3.5 text-[#285EA8]" />
+                    <span>Mi Perfil</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="space-y-3.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h2 class="text-xs font-bold text-[#172B4D] uppercase tracking-wider">Compromisos Asignados</h2>
+                    <p class="text-[11px] text-[#64748B]">Selecciona una tarjeta para entregar evidencias o abrir el diálogo con Dirección</p>
+                </div>
+
+                <div class="chips-scroller flex items-center gap-1.5 overflow-x-auto py-0.5" role="group" aria-label="Filtrar compromisos por fecha">
+                    <button type="button"
+                            class="filtro-fecha-btn touch-target px-2.5 py-1.5 rounded-md text-xs font-bold bg-[#172B4D] text-white shadow-xs whitespace-nowrap"
+                            data-filtro-fecha="todos">
+                        Todos <span class="ml-1 font-mono text-[11px] opacity-80 tabular-nums">@total</span>
+                    </button>
+                    <button type="button"
+                            class="filtro-fecha-btn touch-target px-2.5 py-1.5 rounded-md text-xs font-semibold bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200 whitespace-nowrap"
+                            data-filtro-fecha="recientes">
+                        Recientes <span class="ml-1 font-mono text-[11px] opacity-75 tabular-nums">@recientes</span>
+                    </button>
+                    <button type="button"
+                            class="filtro-fecha-btn touch-target px-2.5 py-1.5 rounded-md text-xs font-semibold bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200 whitespace-nowrap"
+                            data-filtro-fecha="ayer">
+                        Ayer <span class="ml-1 font-mono text-[11px] opacity-75 tabular-nums">@ayer</span>
+                    </button>
+                    <button type="button"
+                            class="filtro-fecha-btn touch-target px-2.5 py-1.5 rounded-md text-xs font-semibold bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200 whitespace-nowrap"
+                            data-filtro-fecha="anteriores">
+                        Anteriores <span class="ml-1 font-mono text-[11px] opacity-75 tabular-nums">@anteriores</span>
+                    </button>
+                    <button type="button"
+                            class="filtro-fecha-btn touch-target px-2.5 py-1.5 rounded-md text-xs font-semibold bg-amber-50 text-[#D97745] border border-[#D97745]/30 hover:bg-amber-100 whitespace-nowrap"
+                            data-filtro-fecha="retrasados">
+                        Retrasados <span class="ml-1 font-mono text-[11px] opacity-80 tabular-nums">@retraso</span>
+                    </button>
+                </div>
+            </div>
+
+            @if (!lista.Any())
+            {
+                <div class="bg-white rounded-lg border border-dashed border-[#DCE4ED] p-8 text-center text-[#64748B] text-xs">
+                    No tienes actividades asignadas actualmente.
+                </div>
+            }
+            else
+            {
+                <div id="noActividadesFiltro" class="hidden bg-white rounded-lg border border-dashed border-[#DCE4ED] p-8 text-center text-[#64748B] text-xs">
+                    No hay compromisos en esta categoría de fecha.
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="gridMisActividades">
+                    @foreach (var item in lista)
+                    {
+                        var esVencida = item.Estatus != "Cumplido" && item.FechaLimite < hoy;
+                        var fechaAsig = item.FechaAsignacion.Date;
+                        var grupoFecha = fechaAsig >= hoyFecha
+                            ? "recientes"
+                            : (fechaAsig == ayerFecha ? "ayer" : "anteriores");
+
+                        var colorLinea = item.Estatus == "Cumplido"
+                            ? "bg-[#0F9F83]"
+                            : (item.Estatus == "En revision"
+                                ? "bg-[#285EA8]"
+                                : (esVencida ? "bg-[#D97745]" : "bg-slate-300"));
+
+                        <button type="button"
+                                id="card-act-@item.Id"
+                                onclick="abrirModalActividad(@item.Id)"
+                                data-fecha-grupo="@grupoFecha"
+                                data-retrasado="@(esVencida ? "true" : "false")"
+                                class="act-card-btn relative w-full text-left bg-white rounded-lg border border-[#DCE4ED] shadow-xs px-4 py-3.5 overflow-hidden flex items-center justify-between gap-3 cursor-pointer">
+
+                            <span class="act-card-accent absolute top-0 left-0 right-0 h-[2px] @colorLinea" aria-hidden="true"></span>
+
+                            <span class="act-card-title font-bold text-sm text-[#172B4D] truncate min-w-0">
+                                @item.Titulo
+                            </span>
+
+                            <span class="flex items-center gap-2 shrink-0">
+                                @if (item.Estatus == "Cumplido")
+                                {
+                                    <span class="act-card-status inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-bold bg-emerald-50 text-[#0F9F83] border border-[#0F9F83]/30 whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#0F9F83]"></span> Cumplido
+                                    </span>
+                                }
+                                else if (item.Estatus == "En revision")
+                                {
+                                    <span class="act-card-status inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-bold bg-blue-50 text-[#285EA8] border border-[#285EA8]/30 whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#285EA8]"></span> En revisión
+                                    </span>
+                                }
+                                else if (esVencida)
+                                {
+                                    <span class="act-card-status inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-bold bg-amber-50 text-[#D97745] border border-[#D97745]/30 whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#D97745]"></span> Atrasada
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="act-card-status inline-flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-bold bg-slate-100 text-slate-700 border border-[#DCE4ED] whitespace-nowrap">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Pendiente
+                                    </span>
+                                }
+                                <svg class="act-card-arrow w-3.5 h-3.5 text-[#64748B] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                    <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<dialog id="modalActividadDocente" closedby="any" aria-labelledby="actModalTitulo" class="w-full max-w-2xl rounded-lg select-none">
+    <div id="modalActividadContenido" class="bg-white w-full max-h-[90dvh] rounded-lg shadow-xl border border-[#DCE4ED] overflow-hidden flex flex-col">
+
+        <div class="px-5 py-3.5 bg-[#172B4D] text-white flex justify-between items-center gap-3 shrink-0">
+            <div class="flex items-center gap-3 min-w-0">
+                <div id="actModalHeaderIcon" class="w-8 h-8 rounded-md bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
+                    <icon name="notepad-text" class="w-4 h-4 text-white" />
+                </div>
+                <div class="act-modal-stagger min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <span id="actModalCategoria" class="text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-sm bg-white/15 text-slate-100">
+                            Categoría
+                        </span>
+                        <span id="actModalBadgeEstatus" class="px-2 py-0.5 rounded-sm text-[11px] font-bold bg-slate-200 text-slate-700">
+                            Pendiente
+                        </span>
+                    </div>
+                    <h3 id="actModalTitulo" class="font-bold text-sm sm:text-base text-white truncate">
+                        Cargando actividad...
+                    </h3>
+                    <p id="actModalFechas" class="text-[11px] text-slate-300 mt-0.5 tabular-nums">
+                        Cargando fechas...
+                    </p>
+                </div>
+            </div>
+            <button type="button" onclick="cerrarModalActividadDocente()" aria-label="Cerrar detalle de actividad"
+                    class="modal-close-btn text-slate-300 hover:text-white hover:bg-white/10 shrink-0">
+                <svg id="actModalCloseSvg" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="overflow-visible block">
+                    <line class="bar-top" x1="2" y1="5" x2="14" y2="5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                    <line class="bar-mid" x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                    <line class="bar-bot" x1="2" y1="11" x2="14" y2="11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 text-xs">
+
+            <div class="act-modal-stagger space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#172B4D] flex items-center gap-1.5">
+                        <icon name="notepad-text" class="w-3.5 h-3.5 text-[#285EA8]" />
+                        <span>Documentos probatorios</span>
+                        <span id="actModalDocsCount" class="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded-sm font-bold border border-[#DCE4ED] tabular-nums">0</span>
+                    </span>
+                </div>
+
+                <div id="actModalListaDocs" class="space-y-1.5">
+                    <p class="text-xs text-[#64748B] italic">Cargando documentos...</p>
+                </div>
+
+                <div id="actModalZonaCarga" class="hidden flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                    <label id="actModalLblUpload" class="touch-target cursor-pointer gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-[#172B4D] text-xs font-semibold rounded-md border border-[#DCE4ED] transition">
+                        <icon name="upload" class="w-3.5 h-3.5 text-[#285EA8]" />
+                        <span id="actModalTxtUpload">Subir evidencia</span>
+                        <input type="file" id="actModalFileInput" class="hidden"
+                               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xlsx,.xls"
+                               onchange="subirArchivoModal()" />
+                    </label>
+                    <span class="text-[11px] text-[#64748B]">PDF, Word, imagen o Excel (máx. 10 MB)</span>
+                </div>
+            </div>
+
+            <div class="act-modal-stagger pt-3 border-t border-[#DCE4ED] space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-[#172B4D] flex items-center gap-1.5">
+                        <icon name="message-square-text" class="w-3.5 h-3.5 text-[#285EA8]" />
+                        <span>Observaciones y Aclaraciones con Dirección</span>
+                    </span>
+                    <span class="text-[10px] text-[#64748B] tabular-nums" id="actModalChatCount">0 mensaje(s)</span>
+                </div>
+
+                <div id="actModalChatHistorial" class="p-2.5 bg-[#E9EFF6]/40 rounded-md border border-[#DCE4ED] space-y-2 max-h-48 overflow-y-auto text-xs" aria-live="polite">
+                    <p class="text-center text-[#64748B] italic text-[11px] py-2">Cargando mensajes...</p>
+                </div>
+
+                @if (!esAdmin)
+                {
+                    <div class="flex gap-1.5 pt-1">
+                        <label for="actModalNuevoMensaje" class="visually-hidden">Mensaje u observación sobre la actividad</label>
+                        <input type="text" id="actModalNuevoMensaje"
+                               oninput="verificarTextoDocenteChatModal()"
+                               placeholder="Escribe una respuesta, confirmación o aclaración..."
+                               class="flex-1 min-w-0 px-3 py-2 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none transition"
+                               onkeydown="if(event.key==='Enter'){ event.preventDefault(); if(event.isComposing || event.keyCode===229) return; enviarComentarioModal(); }" />
+                        <button type="button" id="actModalBtnChat" onclick="enviarComentarioModal()" disabled
+                                class="touch-target gap-1 px-3.5 py-2 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+                            <icon name="check" class="w-3.5 h-3.5 text-white" />
+                            <span id="actModalTxtChat">Enviar</span>
+                        </button>
+                    </div>
+                }
+            </div>
+
+        </div>
+
+        <div class="act-modal-stagger px-5 py-3 bg-slate-50 border-t border-[#DCE4ED] flex flex-wrap items-center justify-end gap-2 shrink-0">
+            <button type="button" onclick="cerrarModalActividadDocente()"
+                    class="touch-target px-4 py-2 border border-[#DCE4ED] rounded-md text-[#64748B] hover:bg-slate-100 font-semibold transition text-xs">
+                Cerrar
+            </button>
+            @if (!esAdmin)
+            {
+                <button type="button" id="actModalBtnEntregar" onclick="marcarEntregadaModal()"
+                        class="hidden touch-target gap-1.5 px-4 py-2 bg-[#0F9F83] hover:bg-[#0D876F] text-white text-xs font-bold rounded-md shadow-xs transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    <icon name="check" class="w-3.5 h-3.5 text-white" />
+                    <span id="actModalTxtEntregar">Enviar a Revisión de Dirección</span>
+                </button>
+            }
+        </div>
+    </div>
+</dialog>
+
+@section Scripts {
+<script>
+    const esAdminActual = @(esAdmin ? "true" : "false");
+    let actividadModalActualId = null;
+    let actividadModalEstatusActual = '';
+    let modalActividadTl = null;
+    let isModalClosing = false;
+    let modalCloseTimer = null;
+
+    const prefReducido = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function aplicarEstadoFinalModalSinAnimacion() {
+        if (typeof gsap !== 'undefined') {
+            gsap.set('#modalActividadContenido', { opacity: 1, visibility: 'visible', clearProps: 'transform' });
+            gsap.set('#actModalHeaderIcon', { opacity: 1, clearProps: 'transform' });
+            gsap.set('.act-modal-stagger', { opacity: 1, clearProps: 'transform' });
+            gsap.set('#actModalCloseSvg .bar-mid', { opacity: 0 });
+            gsap.set('#actModalCloseSvg .bar-top', { attr: { x1: 3, y1: 3, x2: 13, y2: 13 } });
+            gsap.set('#actModalCloseSvg .bar-bot', { attr: { x1: 13, y1: 3, x2: 3, y2: 13 } });
+            return;
+        }
+        const contenido = document.getElementById('modalActividadContenido');
+        if (contenido) {
+            contenido.style.opacity = '1';
+            contenido.style.visibility = 'visible';
+        }
+        const mid = document.querySelector('#actModalCloseSvg .bar-mid');
+        const top = document.querySelector('#actModalCloseSvg .bar-top');
+        const bot = document.querySelector('#actModalCloseSvg .bar-bot');
+        if (mid) mid.style.opacity = '0';
+        if (top) { top.setAttribute('x1', '3'); top.setAttribute('y1', '3'); top.setAttribute('x2', '13'); top.setAttribute('y2', '13'); }
+        if (bot) { bot.setAttribute('x1', '13'); bot.setAttribute('y1', '3'); bot.setAttribute('x2', '3'); bot.setAttribute('y2', '13'); }
+    }
+
+    function construirModalActividadTimeline() {
+        if (typeof gsap === 'undefined') return null;
+        if (modalActividadTl) modalActividadTl.revert();
+
+        modalActividadTl = gsap.timeline({ paused: true })
+            .fromTo('#modalActividadContenido',
+                { autoAlpha: 0, yPercent: -8, scale: 0.78, transformOrigin: 'top center' },
+                { autoAlpha: 1, yPercent: 0, scale: 1, duration: 0.65, ease: 'back.out(1.8)', easeReverse: 'power3.out' },
+                0
+            )
+            .fromTo('#actModalHeaderIcon',
+                { opacity: 0, scale: 0.5, rotation: -180 },
+                { opacity: 1, scale: 1, rotation: 0, duration: 0.5, ease: 'back.out(1.7)', easeReverse: 'power4.out' },
+                0.1
+            )
+            .fromTo('#actModalCloseSvg .bar-mid',
+                { opacity: 1 },
+                { opacity: 0, duration: 0.15, ease: 'power2.in', easeReverse: true },
+                0
+            )
+            .fromTo('#actModalCloseSvg .bar-top',
+                { attr: { x1: 2, y1: 5, x2: 14, y2: 5 } },
+                { attr: { x1: 3, y1: 3, x2: 13, y2: 13 }, duration: 0.28, ease: 'power3.inOut' },
+                0
+            )
+            .fromTo('#actModalCloseSvg .bar-bot',
+                { attr: { x1: 2, y1: 11, x2: 14, y2: 11 } },
+                { attr: { x1: 13, y1: 3, x2: 3, y2: 13 }, duration: 0.28, ease: 'power3.inOut' },
+                0
+            )
+            .fromTo('.act-modal-stagger',
+                { opacity: 0, y: 8 },
+                { opacity: 1, y: 0, duration: 0.32, ease: 'power2.out', easeReverse: true, stagger: 0.05 },
+                0.16
+            );
+
+        return modalActividadTl;
+    }
+
+    function verificarTextoDocenteChatModal() {
+        const input = document.getElementById('actModalNuevoMensaje');
+        const btn = document.getElementById('actModalBtnChat');
+        if (!input || !btn) return;
+        const tieneTexto = input.value.trim().length > 0;
+        btn.disabled = !tieneTexto;
+        btn.classList.toggle('opacity-40', !tieneTexto);
+        btn.classList.toggle('cursor-not-allowed', !tieneTexto);
+    }
+
+    async function abrirModalActividad(actividadId) {
+        actividadModalActualId = actividadId;
+        const modal = document.getElementById('modalActividadDocente');
+        const contenido = document.getElementById('modalActividadContenido');
+        if (!modal || !contenido) return;
+
+        if (modalCloseTimer) {
+            clearTimeout(modalCloseTimer);
+            modalCloseTimer = null;
+        }
+        isModalClosing = false;
+        modal.removeAttribute('data-closing');
+
+        document.getElementById('actModalTitulo').textContent = 'Cargando actividad...';
+        document.getElementById('actModalFechas').textContent = '';
+        document.getElementById('actModalListaDocs').innerHTML = '<p class="text-xs text-[#64748B] italic">Cargando documentos...</p>';
+        document.getElementById('actModalChatHistorial').innerHTML = '<p class="text-center text-[#64748B] italic text-[11px] py-2">Cargando mensajes...</p>';
+        document.getElementById('actModalZonaCarga').classList.add('hidden');
+
+        const btnEntregar = document.getElementById('actModalBtnEntregar');
+        if (btnEntregar) btnEntregar.classList.add('hidden');
+
+        const inputMsg = document.getElementById('actModalNuevoMensaje');
+        if (inputMsg) inputMsg.value = '';
+        verificarTextoDocenteChatModal();
+
+        if (!modal.open) {
+            modal.showModal();
+        }
+
+        if (typeof gsap !== 'undefined' && !prefReducido()) {
+            const tl = modalActividadTl || construirModalActividadTimeline();
+            tl.eventCallback('onReverseComplete', null);
+            tl.timeScale(1).play(0);
+        } else {
+            aplicarEstadoFinalModalSinAnimacion();
+            if (typeof gsap !== 'undefined') {
+                gsap.fromTo(contenido, { opacity: 0 }, { opacity: 1, duration: 0.1, ease: 'none' });
+            }
+        }
+
+        try {
+            const resp = await fetch(`/Docentes/GetDetalleActividad?id=${actividadId}`);
+            const data = await resp.json();
+            if (!data.success) {
+                alert(data.message || 'No se pudo cargar la actividad.');
+                cerrarModalActividadDocente();
+                return;
+            }
+
+            actividadModalEstatusActual = data.estatus || 'Pendiente';
+            document.getElementById('actModalCategoria').textContent = data.categoria || 'General';
+            document.getElementById('actModalTitulo').textContent = data.titulo || '';
+            document.getElementById('actModalFechas').textContent = `Asignada el ${data.fechaAsignacion} · Fecha límite: ${data.fechaLimite}`;
+
+            const badge = document.getElementById('actModalBadgeEstatus');
+            badge.textContent = data.estatus;
+            if (data.estatus === 'Cumplido') {
+                badge.className = 'px-2 py-0.5 rounded-sm text-[11px] font-bold bg-emerald-50 text-[#0F9F83] border border-[#0F9F83]/30';
+            } else if (data.estatus === 'En revision') {
+                badge.className = 'px-2 py-0.5 rounded-sm text-[11px] font-bold bg-blue-50 text-[#285EA8] border border-[#285EA8]/30';
+            } else {
+                badge.className = 'px-2 py-0.5 rounded-sm text-[11px] font-bold bg-amber-50 text-[#D97745] border border-[#D97745]/30';
+            }
+
+            const zonaCarga = document.getElementById('actModalZonaCarga');
+            if (!esAdminActual && data.estatus !== 'Cumplido') {
+                zonaCarga.classList.remove('hidden');
+            } else {
+                zonaCarga.classList.add('hidden');
+            }
+
+            if (btnEntregar) {
+                if (!esAdminActual && data.estatus === 'Pendiente') {
+                    btnEntregar.classList.remove('hidden');
+                    btnEntregar.disabled = false;
+                    btnEntregar.classList.remove('opacity-40', 'cursor-not-allowed');
+                    const txtEnt = document.getElementById('actModalTxtEntregar');
+                    if (txtEnt) txtEnt.textContent = 'Enviar a Revisión de Dirección';
+                } else {
+                    btnEntregar.classList.add('hidden');
+                }
+            }
+
+            renderizarDocsModal(data.documentos || [], actividadId, data.estatus);
+            renderizarChatModal(data.comentarios || []);
+        } catch {
+            alert('Error al obtener los detalles de la actividad.');
+            cerrarModalActividadDocente();
+        }
+    }
+
+    function finalizarCierreModal() {
+        if (modalCloseTimer) {
+            clearTimeout(modalCloseTimer);
+            modalCloseTimer = null;
+        }
+        isModalClosing = false;
+        const modal = document.getElementById('modalActividadDocente');
+        if (modal) {
+            modal.removeAttribute('data-closing');
+            if (modal.open) modal.close();
+        }
+        actividadModalActualId = null;
+    }
+
+    function cerrarModalActividadDocente() {
+        const modal = document.getElementById('modalActividadDocente');
+        if (!modal || !modal.open || isModalClosing) return;
+
+        if (modalActividadTl && typeof gsap !== 'undefined' && !prefReducido() && modalActividadTl.totalTime() > 0.001) {
+            isModalClosing = true;
+            modal.setAttribute('data-closing', '');
+            modalActividadTl.eventCallback('onReverseComplete', finalizarCierreModal);
+            modalActividadTl.timeScale(1.45).reverse();
+            modalCloseTimer = setTimeout(finalizarCierreModal, 1200);
+        } else {
+            finalizarCierreModal();
+        }
+    }
+
+    function renderizarDocsModal(docs, actividadId, estatus) {
+        const lista = document.getElementById('actModalListaDocs');
+        const countBadge = document.getElementById('actModalDocsCount');
+        countBadge.textContent = docs.length;
+
+        if (!docs.length) {
+            lista.innerHTML = `<p class="text-xs text-[#64748B] italic" id="actModalSinDocs">No se han adjuntado documentos aún.</p>`;
+            return;
+        }
+
+        lista.innerHTML = '';
+        docs.forEach(doc => {
+            lista.appendChild(crearFilaDocModal(doc, actividadId, estatus));
+        });
+    }
+
+    function crearFilaDocModal(doc, actividadId, estatus) {
+        const fila = document.createElement('div');
+        fila.className = 'flex items-center justify-between gap-2 px-3 py-1.5 bg-[#E9EFF6]/50 border border-[#DCE4ED] rounded-md text-xs';
+        fila.id = `modal-doc-row-${doc.id}`;
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'flex items-center gap-2 min-w-0 truncate';
+
+        const nombreSpan = document.createElement('span');
+        nombreSpan.className = 'font-medium text-[#172B4D] truncate';
+        nombreSpan.textContent = doc.nombreOriginal ?? doc.nombre ?? '';
+
+        const tamanoSpan = document.createElement('span');
+        tamanoSpan.className = 'text-[#64748B] text-[10px] shrink-0 tabular-nums';
+        tamanoSpan.textContent = `(${doc.tamano ?? ''})`;
+
+        infoDiv.append(nombreSpan, tamanoSpan);
+
+        const accionesDiv = document.createElement('div');
+        accionesDiv.className = 'flex items-center gap-1.5 shrink-0';
+
+        const verLink = document.createElement('a');
+        verLink.href = doc.previewUrl ?? '#';
+        verLink.target = '_blank';
+        verLink.className = 'touch-target px-2 py-1 rounded-md text-[#285EA8] hover:bg-white hover:underline font-bold';
+        verLink.textContent = 'Ver';
+        accionesDiv.appendChild(verLink);
+
+        if (!esAdminActual && estatus !== 'Cumplido') {
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'touch-target px-2 py-1 rounded-md text-[#C2414B] hover:bg-rose-50 hover:text-rose-700 font-bold';
+            delBtn.title = 'Eliminar documento';
+            delBtn.setAttribute('aria-label', `Eliminar documento ${doc.nombreOriginal ?? doc.nombre ?? ''}`);
+            delBtn.textContent = '✕';
+            delBtn.onclick = () => eliminarDocModal(doc.id, actividadId);
+            accionesDiv.appendChild(delBtn);
+        }
+
+        fila.append(infoDiv, accionesDiv);
+        return fila;
+    }
+
+    function renderizarChatModal(comentarios) {
+        const historial = document.getElementById('actModalChatHistorial');
+        const countEl = document.getElementById('actModalChatCount');
+        countEl.textContent = `${comentarios.length} mensaje(s)`;
+
+        if (!comentarios.length) {
+            historial.innerHTML = `<p class="text-center text-[#64748B] italic text-[11px] py-2" id="actModalSinComms">Sin observaciones previas. Puedes enviar confirmaciones o preguntas aquí.</p>`;
+            return;
+        }
+
+        historial.innerHTML = '';
+        comentarios.forEach(c => {
+            const esDirector = c.rolAutor === 'Administrador';
+            const wrap = document.createElement('div');
+            wrap.className = `flex flex-col ${esDirector ? 'items-start' : 'items-end'} space-y-0.5`;
+
+            const meta = document.createElement('div');
+            meta.className = 'flex items-center gap-1.5 text-[10px]';
+
+            const autor = document.createElement('span');
+            autor.className = `font-bold ${esDirector ? 'text-[#172B4D]' : 'text-[#0F9F83]'}`;
+            autor.textContent = c.autorNombre ?? '';
+
+            const fecha = document.createElement('span');
+            fecha.className = 'text-[#64748B] tabular-nums';
+            fecha.textContent = c.fecha ?? '';
+
+            meta.append(autor, fecha);
+
+            const body = document.createElement('div');
+            body.className = `p-2 rounded-md max-w-[90%] text-xs ${esDirector ? 'bg-white text-[#172B4D] border border-[#DCE4ED]' : 'bg-emerald-50 text-emerald-950 border border-[#0F9F83]/30'}`;
+            body.textContent = c.mensaje ?? '';
+
+            wrap.append(meta, body);
+            historial.appendChild(wrap);
+        });
+
+        historial.scrollTop = historial.scrollHeight;
+    }
+
+    async function subirArchivoModal() {
+        if (!actividadModalActualId) return;
+        const input = document.getElementById('actModalFileInput');
+        if (!input.files || input.files.length === 0) return;
+
+        const label = document.getElementById('actModalLblUpload');
+        const txt = document.getElementById('actModalTxtUpload');
+        if (label) {
+            label.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+            if (txt) txt.textContent = 'Subiendo...';
+        }
+
+        const formData = new FormData();
+        formData.append('actividadId', actividadModalActualId);
+        formData.append('archivo', input.files[0]);
+
+        try {
+            const resp = await fetch('/Docentes/SubirDocumento', { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (data.success) {
+                const sinDocs = document.getElementById('actModalSinDocs');
+                if (sinDocs) sinDocs.remove();
+
+                const lista = document.getElementById('actModalListaDocs');
+                lista.appendChild(crearFilaDocModal(data, actividadModalActualId, actividadModalEstatusActual));
+
+                const badge = document.getElementById('actModalDocsCount');
+                badge.textContent = parseInt(badge.textContent || '0') + 1;
+                input.value = '';
+            } else {
+                alert(data.message || 'Error al subir el archivo.');
+            }
+        } catch {
+            alert('Error de conexión al subir el documento.');
+        } finally {
+            if (label) {
+                label.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                if (txt) txt.textContent = 'Subir evidencia';
+            }
+        }
+    }
+
+    async function eliminarDocModal(docId, actividadId) {
+        if (!confirm('¿Eliminar este documento probatorio?')) return;
+        try {
+            const resp = await fetch(`/Docentes/EliminarDocumento?id=${docId}`, { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) {
+                const fila = document.getElementById(`modal-doc-row-${docId}`);
+                if (fila) fila.remove();
+
+                const badge = document.getElementById('actModalDocsCount');
+                const actual = Math.max(0, parseInt(badge.textContent || '1') - 1);
+                badge.textContent = actual;
+                if (actual === 0) {
+                    document.getElementById('actModalListaDocs').innerHTML = `<p class="text-xs text-[#64748B] italic" id="actModalSinDocs">No se han adjuntado documentos aún.</p>`;
+                }
+            } else {
+                alert('No se pudo eliminar el documento.');
+            }
+        } catch {
+            alert('Error de conexión al eliminar el archivo.');
+        }
+    }
+
+    async function marcarEntregadaModal() {
+        if (!actividadModalActualId) return;
+        if (!confirm('¿Deseas enviar esta actividad a revisión de dirección?')) return;
+
+        const btn = document.getElementById('actModalBtnEntregar');
+        const txt = document.getElementById('actModalTxtEntregar');
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-40', 'cursor-not-allowed');
+            if (txt) txt.textContent = 'Enviando a Revisión...';
+        }
+
+        try {
+            const resp = await fetch('/Docentes/MarcarEntregada', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actividadId: actividadModalActualId })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error al actualizar el estado.');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    if (txt) txt.textContent = 'Enviar a Revisión de Dirección';
+                }
+            }
+        } catch {
+            alert('Error al conectar con el servidor.');
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-40', 'cursor-not-allowed');
+                if (txt) txt.textContent = 'Enviar a Revisión de Dirección';
+            }
+        }
+    }
+
+    async function enviarComentarioModal() {
+        if (!actividadModalActualId) return;
+        const input = document.getElementById('actModalNuevoMensaje');
+        const btn = document.getElementById('actModalBtnChat');
+        const txt = document.getElementById('actModalTxtChat');
+        const texto = input.value.trim();
+        if (!texto) return;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-40', 'cursor-not-allowed');
+            if (txt) txt.textContent = 'Enviando...';
+        }
+
+        try {
+            const resp = await fetch('/Docentes/AgregarComentario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actividadId: actividadModalActualId, mensaje: texto })
+            });
+            const res = await resp.json();
+            if (res.success) {
+                input.value = '';
+                const sinComms = document.getElementById('actModalSinComms');
+                if (sinComms) sinComms.remove();
+
+                const historial = document.getElementById('actModalChatHistorial');
+                const nuevoDiv = document.createElement('div');
+                nuevoDiv.className = 'flex flex-col items-end space-y-0.5';
+
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'flex items-center gap-1.5 text-[10px]';
+
+                const autorSpan = document.createElement('span');
+                autorSpan.className = 'font-bold text-[#0F9F83]';
+                autorSpan.textContent = res.comentario.autorNombre ?? '';
+
+                const fechaSpan = document.createElement('span');
+                fechaSpan.className = 'text-[#64748B] tabular-nums';
+                fechaSpan.textContent = res.comentario.fecha ?? '';
+
+                metaDiv.append(autorSpan, fechaSpan);
+
+                const bodyDiv = document.createElement('div');
+                bodyDiv.className = 'p-2 rounded-md max-w-[90%] text-xs bg-emerald-50 text-emerald-950 border border-[#0F9F83]/30';
+                bodyDiv.textContent = res.comentario.mensaje ?? '';
+
+                nuevoDiv.append(metaDiv, bodyDiv);
+                historial.appendChild(nuevoDiv);
+                historial.scrollTop = historial.scrollHeight;
+
+                const countEl = document.getElementById('actModalChatCount');
+                const actual = parseInt(countEl.textContent || '0') + 1;
+                countEl.textContent = `${actual} mensaje(s)`;
+            } else {
+                alert(res.message || 'No se pudo enviar el mensaje.');
+            }
+        } catch {
+            alert('Error al conectar con el servidor.');
+        } finally {
+            if (txt) txt.textContent = 'Enviar';
+            verificarTextoDocenteChatModal();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const cards = Array.from(document.querySelectorAll('.act-card-btn'));
+        const filtros = document.querySelectorAll('.filtro-fecha-btn');
+        const emptyBox = document.getElementById('noActividadesFiltro');
+        const modal = document.getElementById('modalActividadDocente');
+        const cardTimelines = new Map();
+
+        if (modal) {
+            modal.addEventListener('cancel', (event) => {
+                event.preventDefault();
+                cerrarModalActividadDocente();
+            });
+            modal._onLightDismiss = () => cerrarModalActividadDocente();
+            modal.addEventListener('close', () => {
+                if (modalCloseTimer) {
+                    clearTimeout(modalCloseTimer);
+                    modalCloseTimer = null;
+                }
+                isModalClosing = false;
+                modal.removeAttribute('data-closing');
+                actividadModalActualId = null;
+            });
+        }
+
+        if (typeof gsap !== 'undefined') {
+            const mm = gsap.matchMedia();
+
+            mm.add('(prefers-reduced-motion: no-preference)', () => {
+                if (cards.length > 0) {
+                    gsap.fromTo(cards,
+                        { opacity: 0, y: 8 },
+                        { opacity: 1, y: 0, duration: 0.24, stagger: { amount: 0.1 }, ease: 'power3.out', clearProps: 'opacity,transform' }
+                    );
+                }
+            });
+
+            mm.add('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)', () => {
+                const cleanups = [];
+
+                cards.forEach(card => {
+                    const accent = card.querySelector('.act-card-accent');
+                    const status = card.querySelector('.act-card-status');
+                    const arrow  = card.querySelector('.act-card-arrow');
+
+                    const cardTl = gsap.timeline({ paused: true })
+                        .to(card, { y: -3, scale: 1.01, duration: 0.42, ease: 'back.out(2)', easeReverse: 'power2.out' }, 0);
+
+                    if (accent) {
+                        cardTl.fromTo(accent,
+                            { scaleX: 0.32 },
+                            { scaleX: 1, duration: 0.4, ease: 'back.out(1.7)', easeReverse: 'power3.out' },
+                            0
+                        );
+                    }
+                    if (status) {
+                        cardTl.to(status,
+                            { x: -2, scale: 1.04, duration: 0.34, ease: 'back.out(1.8)', easeReverse: 'power3.out' },
+                            0.03
+                        );
+                    }
+                    if (arrow) {
+                        cardTl.to(arrow,
+                            { opacity: 1, x: 2, duration: 0.26, ease: 'power2.out', easeReverse: true },
+                            0.04
+                        );
+                    }
+
+                    cardTimelines.set(card, cardTl);
+
+                    const onEnter = () => cardTl.timeScale(1).play();
+                    const onLeave = () => cardTl.timeScale(1.35).reverse();
+
+                    card.addEventListener('pointerenter', onEnter);
+                    card.addEventListener('pointerleave', onLeave);
+                    card.addEventListener('focus', onEnter);
+                    card.addEventListener('blur', onLeave);
+
+                    cleanups.push(() => {
+                        card.removeEventListener('pointerenter', onEnter);
+                        card.removeEventListener('pointerleave', onLeave);
+                        card.removeEventListener('focus', onEnter);
+                        card.removeEventListener('blur', onLeave);
+                        cardTimelines.delete(card);
+                        cardTl.revert();
+                    });
+                });
+
+                return () => cleanups.forEach(fn => fn());
+            });
+
+            mm.add('(prefers-reduced-motion: reduce)', () => {
+                if (modalActividadTl) {
+                    modalActividadTl.revert();
+                    modalActividadTl = null;
+                }
+                aplicarEstadoFinalModalSinAnimacion();
+            });
+        } else {
+            aplicarEstadoFinalModalSinAnimacion();
+        }
+
+        filtros.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filtros.forEach(b => {
+                    b.classList.remove('bg-[#172B4D]', 'text-white', 'shadow-xs');
+                    if (b.dataset.filtroFecha === 'retrasados') {
+                        b.classList.add('bg-amber-50', 'text-[#D97745]');
+                    } else {
+                        b.classList.add('bg-[#E9EFF6]', 'text-[#172B4D]');
+                    }
+                });
+                btn.classList.remove('bg-[#E9EFF6]', 'text-[#172B4D]', 'bg-amber-50', 'text-[#D97745]');
+                btn.classList.add('bg-[#172B4D]', 'text-white', 'shadow-xs');
+
+                const filtro = btn.dataset.filtroFecha;
+                const visibles = [];
+
+                cards.forEach(card => {
+                    const cardTl = cardTimelines.get(card);
+                    if (cardTl) cardTl.pause(0);
+
+                    const grupo = card.dataset.fechaGrupo;
+                    const esRetrasado = card.dataset.retrasado === 'true';
+                    const coincide =
+                        filtro === 'todos' ||
+                        (filtro === 'retrasados' && esRetrasado) ||
+                        (filtro === grupo);
+
+                    if (coincide) {
+                        card.style.display = 'flex';
+                        visibles.push(card);
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                if (emptyBox) {
+                    emptyBox.classList.toggle('hidden', visibles.length > 0);
+                }
+
+                if (visibles.length > 0 && typeof gsap !== 'undefined' && !prefReducido()) {
+                    gsap.killTweensOf(visibles);
+                    gsap.fromTo(visibles,
+                        { opacity: 0, y: 6 },
+                        { opacity: 1, y: 0, duration: 0.18, stagger: { amount: 0.08 }, ease: 'power3.out', clearProps: 'opacity,transform' }
+                    );
+                }
+            });
+        });
+    });
+</script>
+}

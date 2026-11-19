@@ -1,0 +1,167 @@
+@model DirectorioDocente.Models.Docente
+
+@{
+    ViewData["Title"] = "Registro Docente";
+    Layout = "_Layout";
+}
+
+<div class="min-h-[calc(100svh-112px)] flex items-center justify-center py-8 px-4">
+
+    <div class="w-full max-w-md">
+
+        <div class="text-center mb-5">
+            <div class="inline-flex items-center justify-center w-11 h-11 rounded-lg bg-[#172B4D] text-white shadow-xs mb-2.5">
+                <icon name="graduation-cap" class="w-5 h-5 text-white" />
+            </div>
+            <h1 class="text-xl font-bold text-[#172B4D]">SIGED · UPVM</h1>
+            <p class="text-xs text-[#64748B] mt-0.5">Alta Institucional en el Directorio Docente</p>
+        </div>
+
+        <div class="bg-white rounded-lg border border-[#DCE4ED] shadow-sm overflow-hidden">
+
+            <div class="px-5 py-4 bg-[#172B4D] text-white border-b border-white/10">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-md bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
+                            <icon name="user-round-group" class="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-bold tracking-tight text-white">Registro al Directorio Docente</h2>
+                            <p class="text-[11px] text-slate-300">Captura tus credenciales para activar tu cuenta</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/15 border border-emerald-400/30 text-[10px] font-bold text-emerald-200 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#0F9F83]"></span>
+                        Verificado
+                    </span>
+                </div>
+            </div>
+
+            <form asp-action="CompletarRegistro" method="post" class="p-5 space-y-3.5 text-xs">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="token" value="@ViewBag.Token" />
+
+                <div>
+                    <label asp-for="ClaveDocente" class="block font-bold text-[#172B4D] mb-1">
+                        Matrícula o Clave Institucional
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                            <icon name="notepad-text" class="w-3.5 h-3.5" />
+                        </span>
+                        <input asp-for="ClaveDocente" required autocapitalize="characters" placeholder="Ej. D-104"
+                               class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:outline-none focus:ring-1 focus:ring-[#285EA8] focus:bg-white placeholder:text-[#64748B]" />
+                    </div>
+                    <span asp-validation-for="ClaveDocente" class="text-[#C2414B] text-[11px] font-medium mt-0.5 block"></span>
+                </div>
+
+                <div>
+                    <label asp-for="NombreCompleto" class="block font-bold text-[#172B4D] mb-1">
+                        Nombre Completo
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                            <icon name="users" class="w-3.5 h-3.5" />
+                        </span>
+                        <input asp-for="NombreCompleto" required autocomplete="name" placeholder="Nombre(s) y Apellidos"
+                               class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:outline-none focus:ring-1 focus:ring-[#285EA8] focus:bg-white placeholder:text-[#64748B]" />
+                    </div>
+                    <span asp-validation-for="NombreCompleto" class="text-[#C2414B] text-[11px] font-medium mt-0.5 block"></span>
+                </div>
+
+                <div>
+                    <label asp-for="CorreoInstitucional" class="block font-bold text-[#172B4D] mb-1">
+                        Correo Institucional
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                            <icon name="mail" class="w-3.5 h-3.5" />
+                        </span>
+                        <input asp-for="CorreoInstitucional" type="email" required autocomplete="email" placeholder="docente@upvm.edu.mx"
+                               class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:outline-none focus:ring-1 focus:ring-[#285EA8] focus:bg-white placeholder:text-[#64748B]" />
+                    </div>
+                    <span asp-validation-for="CorreoInstitucional" class="text-[#C2414B] text-[11px] font-medium mt-0.5 block"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Telefono" class="block font-bold text-[#172B4D] mb-1">
+                        Teléfono Móvil <span class="text-[#64748B] font-normal">(WhatsApp)</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                            <icon name="smartphone" class="w-3.5 h-3.5" />
+                        </span>
+                        <input asp-for="Telefono" type="tel" autocomplete="tel" placeholder="10 dígitos"
+                               class="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:outline-none focus:ring-1 focus:ring-[#285EA8] focus:bg-white placeholder:text-[#64748B]" />
+                    </div>
+                </div>
+
+                <div>
+                    <style>
+                        .brand-select,
+                        .brand-select::picker(select) {
+                            appearance: base-select;
+                        }
+                        .brand-select {
+                            width: 100%;
+                            background-color: #f8fafc;
+                            border: 1px solid #DCE4ED;
+                            border-radius: 0.375rem;
+                            padding: 0.5rem 0.75rem;
+                            font-size: 0.75rem;
+                            font-weight: 600;
+                            color: #172B4D;
+                            cursor: pointer;
+                        }
+                        .brand-select::picker(select) {
+                            background-color: #ffffff;
+                            border: 1px solid #DCE4ED;
+                            border-radius: 0.375rem;
+                            padding: 0.25rem;
+                            box-shadow: 0 12px 24px -6px rgba(23, 43, 77, 0.14);
+                        }
+                        .brand-select::picker-icon {
+                            color: #64748B;
+                        }
+                        .brand-select option::checkmark {
+                            color: #285EA8;
+                        }
+                        .brand-select option {
+                            padding: 0.5rem 0.625rem;
+                            border-radius: 0.25rem;
+                            color: #172B4D;
+                            cursor: pointer;
+                        }
+                        .brand-select option:hover {
+                            background-color: #E9EFF6;
+                        }
+                    </style>
+                    <label for="inputTipoContrato" class="block font-bold text-[#172B4D] mb-1">
+                        Tipo de Contrato
+                    </label>
+                    <select class="brand-select" id="inputTipoContrato" name="TipoContrato">
+                        <button>
+                            <selectedcontent></selectedcontent>
+                        </button>
+                        <option value="Tiempo Completo" selected>
+                            <span>Profesor de Tiempo Completo — Dedicación exclusiva institucional</span>
+                        </option>
+                        <option value="Asignatura">
+                            <span>Profesor de Asignatura — Carga horaria por materia</span>
+                        </option>
+                    </select>
+                </div>
+
+                <button type="submit"
+                        class="w-full mt-2 py-2.5 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md shadow-xs flex items-center justify-center gap-1.5">
+                    <icon name="circle-check-big" class="w-4 h-4 text-white" />
+                    <span>Finalizar Registro</span>
+                </button>
+
+                <p class="text-[11px] text-[#64748B] text-center pt-1">
+                    Tus datos serán validados por la Dirección Académica correspondiente.
+                </p>
+            </form>
+        </div>
+    </div>
+</div>

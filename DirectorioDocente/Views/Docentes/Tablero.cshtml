@@ -1,0 +1,455 @@
+@model IEnumerable<DirectorioDocente.Models.ActividadDocente>
+
+@{
+    ViewData["Title"] = "Tablero · Seguimiento de Compromisos";
+    var hoy = DateTime.Now;
+
+    var colPendientes  = Model.Where(a => a.Estatus == "Pendiente"   && a.FechaLimite >= hoy).ToList();
+    var colRevision    = Model.Where(a => a.Estatus == "En revision").ToList();
+    var colRezago      = Model.Where(a => a.Estatus == "Pendiente"   && a.FechaLimite <  hoy).ToList();
+    var colCumplidas   = Model.Where(a => a.Estatus == "Cumplido").ToList();
+
+    string GetColor(string categoria) => categoria switch {
+        "Académica"      => "#285EA8",
+        "Evaluación"     => "#D97745",
+        "Tutoría"        => "#0891B2",
+        "Administrativa" => "#0F9F83",
+        _                => "#64748B"
+    };
+
+    string GetStripe(DirectorioDocente.Models.ActividadDocente a, bool vencida) {
+        if (vencida || a.Estatus == "Pendiente" && a.FechaLimite < hoy) return "#C2414B";
+        if (a.Estatus == "Cumplido")    return "#0F9F83";
+        if (a.Estatus == "En revision") return "#285EA8";
+        return GetColor(a.Categoria);
+    }
+}
+
+<style>
+    .odoo-card {
+        transition: transform 160ms var(--ease-out), border-color 160ms ease, box-shadow 160ms var(--ease-out);
+    }
+    @@media (hover: hover) and (pointer: fine) {
+        .odoo-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(40, 94, 168, 0.45);
+            box-shadow: 0 6px 16px -4px rgba(23, 43, 77, 0.08);
+        }
+    }
+    .kanban-drop-zone.drag-over {
+        border-color: #285EA8 !important;
+        background-color: #E9EFF6 !important;
+    }
+    .odoo-card {
+        -webkit-touch-callout: none;
+    }
+    .odoo-card.touch-dragging-source {
+        opacity: 0.35 !important;
+    }
+    .touch-drag-ghost {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+        pointer-events: none;
+        will-change: transform;
+        box-shadow: 0 18px 36px -8px rgba(23, 43, 77, 0.28), 0 6px 14px -4px rgba(23, 43, 77, 0.14);
+        border-color: #285EA8 !important;
+    }
+</style>
+
+<div class="space-y-4 pb-12 select-none" id="kanbanContainer">
+
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-lg border border-[#DCE4ED] shadow-xs">
+        <div>
+            <div class="flex flex-wrap items-center gap-3">
+                <a asp-action="Index" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#DCE4ED] text-xs font-semibold text-[#172B4D] hover:bg-slate-50">
+                    <icon name="users" class="w-3.5 h-3.5 text-[#172B4D]" />
+                    <span>Volver al Directorio</span>
+                </a>
+                <h1 class="text-lg font-bold text-[#172B4D] tracking-tight">Seguimiento de Compromisos Docentes</h1>
+            </div>
+            <p class="text-xs text-[#64748B] mt-1">Gestión visual tipo Kanban y revisión de evidencias de cumplimiento</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+            <button type="button" onclick="abrirModalReporteMensual()"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md shadow-xs">
+                <icon name="calendar" class="w-3.5 h-3.5 text-white" />
+                <span>Exportar Reporte Mensual</span>
+            </button>
+
+            <div class="flex items-center gap-2.5 text-xs text-[#64748B] bg-[#E9EFF6] px-3 py-1.5 rounded-md border border-[#DCE4ED] tabular-nums">
+                <span>Total: <strong class="text-[#172B4D] font-bold">@Model.Count()</strong></span>
+                <span aria-hidden="true">·</span>
+                <span>Vencidos: <strong class="text-[#C2414B] font-bold">@colRezago.Count</strong></span>
+                <span aria-hidden="true">·</span>
+                <span>Cumplidos: <strong class="text-[#0F9F83] font-bold">@colCumplidas.Count</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white px-4 py-3 rounded-lg border border-[#DCE4ED] shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-[#64748B] uppercase tracking-wider flex items-center gap-1.5 mr-1">
+                <icon name="calendar" class="w-3.5 h-3.5 text-[#285EA8]" />
+                Periodo mensual:
+            </span>
+
+            @{
+                var anioSel = ViewBag.AnioSeleccionado as int?;
+                var mesSel = ViewBag.MesSeleccionado as int?;
+                var esTodos = !anioSel.HasValue || !mesSel.HasValue;
+            }
+
+            <a asp-action="Tablero"
+               class="px-3 py-1.5 rounded-md text-xs font-bold @(esTodos ? "bg-[#285EA8] text-white shadow-xs" : "bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200")">
+                Todos los periodos
+            </a>
+
+            @if (ViewBag.MesesDisponibles is IEnumerable<DirectorioDocente.Controllers.DocentesController.MesItem> meses)
+            {
+                foreach (var m in meses)
+                {
+                    var activo = (anioSel == m.Anio && mesSel == m.Mes);
+                    <a asp-action="Tablero" asp-route-anio="@m.Anio" asp-route-mes="@m.Mes"
+                       class="px-3 py-1.5 rounded-md text-xs font-bold capitalize @(activo ? "bg-[#285EA8] text-white shadow-xs" : "bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200")">
+                        @m.Etiqueta
+                    </a>
+                }
+            }
+        </div>
+
+        <div class="flex flex-wrap gap-2 text-[11px]">
+            @foreach (var cat in new[] { ("Académica","#285EA8"), ("Evaluación","#D97745"), ("Tutoría","#0891B2"), ("Administrativa","#0F9F83") })
+            {
+                <span class="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 rounded-md border border-[#DCE4ED] font-medium text-[#172B4D]">
+                    <span class="w-2 h-2 rounded-full" style="background-color: @cat.Item2"></span>
+                    @cat.Item1
+                </span>
+            }
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 items-start">
+
+        <div data-estado="Pendiente" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'Pendiente')"
+             class="kanban-drop-zone flex flex-col min-h-[180px] lg:min-h-[540px] bg-white rounded-lg border border-[#DCE4ED] p-3 transition-colors">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#DCE4ED]">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-[#D97745]"></span>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-[#172B4D]">Pendientes</h2>
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-sm bg-amber-50 text-[#D97745] border border-[#D97745]/30 tabular-nums">@colPendientes.Count</span>
+            </div>
+            <div class="space-y-2.5 flex-1 kanban-col" id="col-pendientes">
+                @foreach (var act in colPendientes)
+                {
+                    <partial name="_OdooCardPartial" model="act"
+                             view-data='@(new ViewDataDictionary(ViewData) { { "Stripe", GetStripe(act, false) }, { "Vencida", false } })' />
+                }
+            </div>
+        </div>
+
+        <div data-estado="En revision" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'En revision')"
+             class="kanban-drop-zone flex flex-col min-h-[180px] lg:min-h-[540px] bg-white rounded-lg border border-[#DCE4ED] p-3 transition-colors">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#DCE4ED]">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-[#285EA8]"></span>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-[#172B4D]">En Revisión</h2>
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-sm bg-[#E9EFF6] text-[#285EA8] border border-[#285EA8]/30 tabular-nums">@colRevision.Count</span>
+            </div>
+            <div class="space-y-2.5 flex-1 kanban-col" id="col-revision">
+                @foreach (var act in colRevision)
+                {
+                    <partial name="_OdooCardPartial" model="act"
+                             view-data='@(new ViewDataDictionary(ViewData) { { "Stripe", "#285EA8" }, { "Vencida", false } })' />
+                }
+            </div>
+        </div>
+
+        <div data-estado="Pendiente" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'Pendiente')"
+             class="kanban-drop-zone flex flex-col min-h-[180px] lg:min-h-[540px] bg-rose-50/40 rounded-lg border border-[#C2414B]/30 p-3 transition-colors">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#C2414B]/20">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-[#C2414B]"></span>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-[#C2414B]">Rezagados</h2>
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-sm bg-rose-50 text-[#C2414B] border border-[#C2414B]/30 tabular-nums">@colRezago.Count</span>
+            </div>
+            <div class="space-y-2.5 flex-1 kanban-col" id="col-rezago">
+                @foreach (var act in colRezago)
+                {
+                    <partial name="_OdooCardPartial" model="act"
+                             view-data='@(new ViewDataDictionary(ViewData) { { "Stripe", "#C2414B" }, { "Vencida", true } })' />
+                }
+            </div>
+        </div>
+
+        <div data-estado="Cumplido" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'Cumplido')"
+             class="kanban-drop-zone flex flex-col min-h-[180px] lg:min-h-[540px] bg-emerald-50/30 rounded-lg border border-[#0F9F83]/30 p-3 transition-colors">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#0F9F83]/20">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-[#0F9F83]"></span>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-[#0F9F83]">Cumplidas</h2>
+                </div>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-sm bg-emerald-50 text-[#0F9F83] border border-[#0F9F83]/30 tabular-nums">@colCumplidas.Count</span>
+            </div>
+            <div class="space-y-2.5 flex-1 kanban-col" id="col-cumplidas">
+                @foreach (var act in colCumplidas)
+                {
+                    <partial name="_OdooCardPartial" model="act"
+                             view-data='@(new ViewDataDictionary(ViewData) { { "Stripe", "#0F9F83" }, { "Vencida", false } })' />
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let draggedActividadId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof gsap !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            gsap.fromTo('.odoo-card',
+                { opacity: 0, y: 10, scale: 0.98 },
+                { opacity: 1, y: 0, scale: 1, duration: 0.26, stagger: { amount: 0.16 }, ease: 'power3.out', clearProps: 'opacity,transform' }
+            );
+        }
+        initKanbanTouchDrag();
+    });
+
+    async function actualizarEstadoKanban(actividadId, nuevoEstado, card) {
+        try {
+            const resp = await fetch('/Docentes/ActualizarEstadoActividad', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ id: parseInt(actividadId), nuevoEstado })
+            });
+            const res = await resp.json();
+            if (res.success) {
+                if (card && typeof gsap !== 'undefined') {
+                    gsap.fromTo(card, { scale: 0.96, opacity: 0.7 }, { scale: 1, opacity: 1, duration: 0.2, ease: 'power3.out' });
+                }
+                window.location.reload();
+                return true;
+            }
+            alert('No se pudo actualizar el estado.');
+            return false;
+        } catch {
+            alert('Error de conexión al mover la tarjeta.');
+            return false;
+        }
+    }
+
+    function handleDragStart(e, id) {
+        draggedActividadId = id;
+        e.dataTransfer.setData('text/plain', id);
+        e.target.style.opacity = '0.5';
+    }
+
+    document.addEventListener('dragend', e => {
+        if (e.target.classList && e.target.classList.contains('odoo-card')) e.target.style.opacity = '1';
+        document.querySelectorAll('.kanban-drop-zone.drag-over').forEach(z => z.classList.remove('drag-over'));
+    });
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        const zone = e.currentTarget;
+        if (zone && !zone.classList.contains('drag-over')) {
+            zone.classList.add('drag-over');
+        }
+    }
+
+    function handleDragLeave(e) {
+        const zone = e.currentTarget;
+        if (zone && !zone.contains(e.relatedTarget)) {
+            zone.classList.remove('drag-over');
+        }
+    }
+
+    async function handleDrop(e, nuevoEstado) {
+        e.preventDefault();
+        if (e.currentTarget) e.currentTarget.classList.remove('drag-over');
+        if (!draggedActividadId) return;
+        const card = document.getElementById(`act-${draggedActividadId}`);
+        const idMover = draggedActividadId;
+        draggedActividadId = null;
+        await actualizarEstadoKanban(idMover, nuevoEstado, card);
+    }
+
+    function initKanbanTouchDrag() {
+        const container = document.getElementById('kanbanContainer');
+        if (!container) return;
+
+        let activeState = null;
+
+        function limpiarEstadoTouch(animarRegreso = false) {
+            if (!activeState) return;
+            const st = activeState;
+            activeState = null;
+
+            if (st.holdTimer) clearTimeout(st.holdTimer);
+            document.querySelectorAll('.kanban-drop-zone.drag-over').forEach(z => z.classList.remove('drag-over'));
+
+            if (st.ghost) {
+                if (animarRegreso && st.card) {
+                    const orig = st.card.getBoundingClientRect();
+                    st.ghost.style.transition = 'transform 180ms cubic-bezier(0.23, 1, 0.32, 1), opacity 180ms ease';
+                    st.ghost.style.transform = `translate3d(${orig.left}px, ${orig.top}px, 0) scale(1)`;
+                    st.ghost.style.opacity = '0.9';
+                    setTimeout(() => {
+                        st.ghost?.remove();
+                        st.card?.classList.remove('touch-dragging-source');
+                    }, 185);
+                    return;
+                }
+                st.ghost.remove();
+            }
+
+            if (st.card) {
+                st.card.classList.remove('touch-dragging-source');
+            }
+        }
+
+        function iniciarArrastreTouch(st, clientX, clientY) {
+            st.isDragging = true;
+            const rect = st.card.getBoundingClientRect();
+            st.offsetX = clientX - rect.left;
+            st.offsetY = clientY - rect.top;
+
+            const ghost = st.card.cloneNode(true);
+            ghost.removeAttribute('id');
+            ghost.removeAttribute('draggable');
+            ghost.classList.add('touch-drag-ghost');
+            ghost.style.width = `${rect.width}px`;
+            ghost.style.height = `${rect.height}px`;
+            ghost.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0) scale(1.03)`;
+            document.body.appendChild(ghost);
+
+            st.ghost = ghost;
+            st.card.classList.add('touch-dragging-source');
+            if (navigator.vibrate) navigator.vibrate(15);
+
+            try { st.card.setPointerCapture(st.pointerId); } catch {}
+        }
+
+        container.addEventListener('pointerdown', (e) => {
+            if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+            if (e.target.closest('button, a, input, select, textarea')) return;
+
+            const card = e.target.closest('.odoo-card');
+            if (!card || !card.id.startsWith('act-')) return;
+
+            const actividadId = card.id.replace('act-', '');
+            const st = {
+                pointerId: e.pointerId,
+                actividadId,
+                card,
+                startX: e.clientX,
+                startY: e.clientY,
+                offsetX: 0,
+                offsetY: 0,
+                isDragging: false,
+                ghost: null,
+                holdTimer: null
+            };
+
+            st.holdTimer = setTimeout(() => {
+                if (activeState === st && !st.isDragging) {
+                    iniciarArrastreTouch(st, st.startX, st.startY);
+                }
+            }, 200);
+
+            activeState = st;
+        }, { passive: true });
+
+        container.addEventListener('pointermove', (e) => {
+            if (!activeState || e.pointerId !== activeState.pointerId) return;
+            const st = activeState;
+
+            if (!st.isDragging) {
+                const dx = e.clientX - st.startX;
+                const dy = e.clientY - st.startY;
+                if (Math.hypot(dx, dy) > 8) {
+                    limpiarEstadoTouch(false);
+                }
+                return;
+            }
+
+            e.preventDefault();
+            const x = e.clientX - st.offsetX;
+            const y = e.clientY - st.offsetY;
+            st.ghost.style.transform = `translate3d(${x}px, ${y}px, 0) scale(1.03)`;
+
+            if (e.clientY < 80) window.scrollBy(0, -10);
+            else if (e.clientY > window.innerHeight - 80) window.scrollBy(0, 10);
+
+            const elBajoDedo = document.elementFromPoint(e.clientX, e.clientY);
+            const dropZone = elBajoDedo ? elBajoDedo.closest('.kanban-drop-zone') : null;
+            document.querySelectorAll('.kanban-drop-zone.drag-over').forEach(z => {
+                if (z !== dropZone) z.classList.remove('drag-over');
+            });
+            if (dropZone) dropZone.classList.add('drag-over');
+        }, { passive: false });
+
+        async function finalizarTouch(e) {
+            if (!activeState || e.pointerId !== activeState.pointerId) return;
+            const st = activeState;
+
+            if (!st.isDragging) {
+                limpiarEstadoTouch(false);
+                return;
+            }
+
+            const elBajoDedo = document.elementFromPoint(e.clientX, e.clientY);
+            const dropZone = elBajoDedo ? elBajoDedo.closest('.kanban-drop-zone') : null;
+            const nuevoEstado = dropZone ? dropZone.dataset.estado : null;
+            const columnaOrigen = st.card.closest('.kanban-drop-zone');
+
+            if (dropZone && nuevoEstado && dropZone !== columnaOrigen) {
+                limpiarEstadoTouch(false);
+                await actualizarEstadoKanban(st.actividadId, nuevoEstado, st.card);
+            } else {
+                limpiarEstadoTouch(true);
+            }
+        }
+
+        container.addEventListener('pointerup', finalizarTouch);
+        container.addEventListener('pointercancel', () => limpiarEstadoTouch(true));
+    }
+
+    async function eliminarActividadKanban(id, titulo) {
+        if (!confirm(`¿Eliminar la actividad "${titulo}"? Se eliminarán también sus documentos adjuntos.`)) return;
+        const card = document.getElementById(`act-${id}`);
+        try {
+            const resp = await fetch(`/Docentes/EliminarActividad?id=${id}`, { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) {
+                if (card) {
+                    gsap.to(card, {
+                        opacity: 0,
+                        scale: 0.94,
+                        y: 6,
+                        duration: 0.2,
+                        ease: 'power2.out',
+                        onComplete: () => {
+                            card.remove();
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                alert(data.message || 'No se pudo eliminar la actividad.');
+            }
+        } catch {
+            alert('Error de conexión al eliminar la actividad.');
+        }
+    }
+</script>
+}

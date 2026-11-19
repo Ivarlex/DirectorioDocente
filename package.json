@@ -1,0 +1,13 @@
+{
+  "name": "directoriodocente",
+  "version": "1.0.0",
+  "scripts": {
+    "watch:css": "tailwindcss -i ./DirectorioDocente/wwwroot/css/input.css -o ./DirectorioDocente/wwwroot/css/site.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0"
+  }
+}

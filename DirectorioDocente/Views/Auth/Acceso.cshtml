@@ -1,0 +1,19 @@
+@{
+    ViewData["Title"] = "Acceso Denegado";
+    Layout = "_Layout";
+}
+
+<div class="flex items-center justify-center min-h-[60vh]">
+    <div class="text-center max-w-sm">
+        <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <icon name="triangle-alert" class="w-8 h-8 text-rose-600" />
+        </div>
+        <h2 class="text-xl font-bold text-slate-900 mb-2">Sin autorización</h2>
+        <p class="text-sm text-slate-500 mb-6">Tu cuenta no tiene permisos para acceder a esta sección del sistema.</p>
+        <a asp-controller="Auth" asp-action="Login"
+           class="inline-flex items-center gap-1.5 px-5 py-2 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition">
+            <icon name="log-in" class="w-4 h-4 text-white" />
+            <span>Volver al inicio</span>
+        </a>
+    </div>
+</div>

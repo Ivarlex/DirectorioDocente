@@ -1,0 +1,15 @@
+@model DirectorioDocente.Models.Docente
+
+<div class="max-w-md mx-auto my-12 bg-white p-8 rounded-2xl border border-slate-200 shadow-md text-center space-y-4">
+    <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+        <icon name="circle-check-big" class="w-8 h-8 text-emerald-600" />
+    </div>
+    <h2 class="text-xl font-bold text-slate-900">¡Registro Completado!</h2>
+    <p class="text-xs text-slate-600">
+        Bienvenido, profesor(a) <strong>@Model.NombreCompleto</strong>. Tus datos han sido dados de alta correctamente en el directorio departamental.
+    </p>
+    <a asp-action="Index" class="inline-flex items-center gap-1.5 mt-4 px-5 py-2 bg-slate-900 text-white text-xs font-semibold rounded-xl hover:bg-slate-800 transition">
+        <icon name="users" class="w-3.5 h-3.5 text-white" />
+        <span>Ir al Directorio</span>
+    </a>
+</div>

@@ -1,0 +1,781 @@
+@model IEnumerable<DirectorioDocente.Models.Docente>
+
+@{
+    ViewData["Title"] = "Directorio Docente";
+
+    int totalDocentes    = ViewBag.TotalDocentes   ?? 0;
+    int alCorriente      = ViewBag.AlCorriente     ?? 0;
+    int conRetraso       = ViewBag.ConRetraso      ?? 0;
+    int cumplimiento     = ViewBag.Cumplimiento    ?? 100;
+    int totalActividades = ViewBag.TotalActividades ?? 0;
+}
+
+<style>
+    .docente-card, .kpi-card {
+        opacity: 1;
+    }
+    .docente-card {
+        container-type: inline-size;
+        transition: transform 180ms var(--ease-out), border-color 180ms ease, box-shadow 180ms var(--ease-out);
+    }
+    @@media (hover: hover) and (pointer: fine) {
+        .docente-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(40, 94, 168, 0.45);
+            box-shadow: 0 8px 20px -6px rgba(23, 43, 77, 0.08), 0 2px 6px -2px rgba(23, 43, 77, 0.04);
+        }
+    }
+    .chips-scroller {
+        scroll-snap-type: x mandatory;
+        touch-action: pan-y;
+        scrollbar-width: none;
+    }
+    .chips-scroller::-webkit-scrollbar {
+        display: none;
+    }
+    .chips-scroller > * {
+        scroll-snap-align: start;
+    }
+</style>
+
+<div class="space-y-4 max-w-[1500px] mx-auto pb-12">
+
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 pb-3 border-b border-[#DCE4ED]">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-md bg-[#172B4D] flex items-center justify-center text-white shrink-0 shadow-xs">
+                <icon name="users" class="w-4 h-4 text-white" />
+            </div>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold text-[#172B4D] tracking-tight">Directorio Docente</h1>
+                <p class="text-xs text-[#64748B]">Supervisión académica, control de plantilla y cumplimiento de evidencias</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-[#64748B] tabular-nums">
+            <span class="w-2 h-2 rounded-full bg-[#0F9F83]"></span>
+            <span>Corte activo: <strong class="text-[#172B4D] font-semibold">@DateTime.Now.ToString("dd MMM yyyy · HH:mm")</strong></span>
+        </div>
+    </div>
+
+    <section aria-label="Indicadores de plantilla" id="kpiContainer"
+             class="bg-white rounded-lg border border-[#DCE4ED] shadow-xs overflow-hidden">
+        <div class="kpi-band-grid grid grid-cols-2 lg:grid-cols-4">
+
+            <div class="kpi-card p-3.5 sm:p-4 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <span class="text-[11px] font-semibold text-[#64748B] block">Plantilla Registrada</span>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-2xl sm:text-[26px] font-extrabold text-[#172B4D] tabular-nums leading-none">@totalDocentes</span>
+                        <span class="text-[11px] font-semibold text-[#64748B]">docentes</span>
+                    </div>
+                    <p class="text-[11px] text-[#64748B] mt-1.5 flex items-center gap-1 tabular-nums">
+                        <icon name="notepad-text" class="w-3 h-3 text-[#285EA8] shrink-0" />
+                        <span>@totalActividades compromiso(s) activos</span>
+                    </p>
+                </div>
+                <span class="w-8 h-8 rounded-md bg-[#E9EFF6] text-[#172B4D] flex items-center justify-center shrink-0">
+                    <icon name="user-round-group" class="w-4 h-4 text-[#172B4D]" />
+                </span>
+            </div>
+
+            <div class="kpi-card p-3.5 sm:p-4 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <span class="text-[11px] font-semibold text-[#0F9F83] block">Al Corriente</span>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-2xl sm:text-[26px] font-extrabold text-[#0F9F83] tabular-nums leading-none">@alCorriente</span>
+                        <span class="text-[11px] font-semibold text-[#0F9F83]/80 tabular-nums">
+                            (@(totalDocentes > 0 ? Math.Round((alCorriente / (double)totalDocentes) * 100) : 100)%)
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-[#64748B] mt-1.5">Sin entregas vencidas</p>
+                </div>
+                <span class="w-8 h-8 rounded-md bg-emerald-50 text-[#0F9F83] flex items-center justify-center shrink-0">
+                    <icon name="circle-check-big" class="w-4 h-4 text-[#0F9F83]" />
+                </span>
+            </div>
+
+            <div class="kpi-card p-3.5 sm:p-4 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <span class="text-[11px] font-semibold text-[#D97745] block">Con Rezago</span>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-2xl sm:text-[26px] font-extrabold text-[#D97745] tabular-nums leading-none">@conRetraso</span>
+                        <span class="text-[11px] font-semibold text-[#D97745]/80">pendientes</span>
+                    </div>
+                    <p class="text-[11px] text-[#64748B] mt-1.5">
+                        @(conRetraso > 0 ? "Atención prioritaria requerida" : "Plantilla sin atrasos")
+                    </p>
+                </div>
+                <span class="w-8 h-8 rounded-md bg-amber-50 text-[#D97745] flex items-center justify-center shrink-0">
+                    <icon name="triangle-alert" class="w-4 h-4 text-[#D97745]" />
+                </span>
+            </div>
+
+            <div class="kpi-card p-3.5 sm:p-4 flex flex-col justify-between">
+                <div class="flex items-start justify-between gap-2">
+                    <div>
+                        <span class="text-[11px] font-semibold text-[#285EA8] block">Índice de Cumplimiento</span>
+                        <span class="text-2xl sm:text-[26px] font-extrabold text-[#172B4D] tabular-nums leading-none mt-1 block">@cumplimiento%</span>
+                    </div>
+                    <span class="w-8 h-8 rounded-md bg-[#E9EFF6] text-[#285EA8] flex items-center justify-center shrink-0">
+                        <icon name="chart-column-stacked" class="w-4 h-4 text-[#285EA8]" />
+                    </span>
+                </div>
+                <div class="mt-2.5 w-full bg-[#E9EFF6] h-1.5 rounded-full overflow-hidden">
+                    <div class="bg-[#0F9F83] h-full rounded-full transition-[width] duration-500" style="width: @cumplimiento%"></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="bg-white p-3 sm:p-3.5 rounded-lg border border-[#DCE4ED] shadow-xs">
+        <div class="flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-3">
+
+            <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2.5 flex-1 min-w-0">
+                <div class="relative flex-1 min-w-[200px] max-w-md">
+                    <label for="buscadorDocente" class="visually-hidden">Buscar docente por nombre, clave o correo institucional</label>
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#64748B]">
+                        <icon name="search" class="w-4 h-4 text-[#64748B]" />
+                    </span>
+                    <input type="search" id="buscadorDocente"
+                           enterkeyhint="search"
+                           placeholder="Buscar por nombre, clave o correo..."
+                           class="w-full pl-9 pr-12 py-1.5 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:outline-none focus:ring-1 focus:ring-[#285EA8] focus:bg-white placeholder:text-[#64748B]" />
+                    <span class="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+                        <kbd class="text-[9px] font-mono text-[#64748B] bg-slate-200/80 border border-[#DCE4ED] px-1 py-0.5 rounded">ESC</kbd>
+                    </span>
+                </div>
+
+                <div class="chips-scroller flex items-center gap-1.5 overflow-x-auto py-0.5" role="group" aria-label="Filtrar por modalidad o estado">
+                    <button type="button" class="filtro-btn active px-2.5 py-1.5 rounded-md text-xs font-bold bg-[#172B4D] text-white shadow-xs whitespace-nowrap" data-tipo="todos">
+                        Todos <span class="ml-1 text-slate-300 font-mono text-[11px] tabular-nums" id="contadorFiltro">@totalDocentes</span>
+                    </button>
+                    <button type="button" class="filtro-btn px-2.5 py-1.5 rounded-md text-xs font-semibold bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200 whitespace-nowrap" data-tipo="Tiempo Completo">
+                        Tiempo Completo
+                    </button>
+                    <button type="button" class="filtro-btn px-2.5 py-1.5 rounded-md text-xs font-semibold bg-[#E9EFF6] text-[#172B4D] hover:bg-slate-200 whitespace-nowrap" data-tipo="Asignatura">
+                        Asignatura
+                    </button>
+                    <button type="button" class="filtro-btn px-2.5 py-1.5 rounded-md text-xs font-semibold bg-emerald-50 text-[#0F9F83] border border-[#0F9F83]/30 hover:bg-emerald-100 whitespace-nowrap" data-tipo="al-dia">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#0F9F83] mr-1 align-middle"></span>Al día
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 justify-start xl:justify-end shrink-0 pt-2 xl:pt-0 border-t xl:border-t-0 border-[#DCE4ED]">
+                <button type="button" onclick="abrirModalAsignar()"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md shadow-xs">
+                    <icon name="notepad-text" class="w-3.5 h-3.5 text-white" />
+                    <span>Asignar Actividad</span>
+                </button>
+
+                <button type="button" onclick="abrirModalReporteMensual()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#172B4D] text-xs font-semibold rounded-md border border-[#DCE4ED] hover:bg-slate-50 shadow-xs">
+                    <icon name="calendar" class="w-3.5 h-3.5 text-[#285EA8]" />
+                    <span>Reporte Mensual</span>
+                </button>
+
+                <a asp-action="Create"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#172B4D] text-xs font-semibold rounded-md border border-[#DCE4ED] hover:bg-slate-50 shadow-xs">
+                    <icon name="users" class="w-3.5 h-3.5 text-[#172B4D]" />
+                    <span>Nuevo Docente</span>
+                </a>
+
+                <button type="button" onclick="abrirModalInvitar()"
+                        title="Generar enlace de auto-registro para nuevos profesores"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-[#172B4D] text-xs font-semibold rounded-md border border-[#DCE4ED] hover:bg-slate-50 shadow-xs">
+                    <icon name="link-2" class="w-3.5 h-3.5 text-[#285EA8]" />
+                    <span>Enlace Registro</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="noResults" class="hidden bg-white rounded-lg border border-dashed border-[#DCE4ED] p-10 text-center">
+        <div class="w-11 h-11 rounded-md bg-[#E9EFF6] text-[#64748B] flex items-center justify-center mx-auto mb-2.5">
+            <icon name="search" class="w-5 h-5 text-[#64748B]" />
+        </div>
+        <h3 class="text-sm font-bold text-[#172B4D]">Sin coincidencias en la plantilla</h3>
+        <p class="text-xs text-[#64748B] mt-0.5">Presiona <kbd class="px-1.5 py-0.5 bg-slate-100 border border-[#DCE4ED] rounded text-[10px] font-mono">ESC</kbd> o cambia el filtro activo para restablecer el listado.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3.5" id="gridDocentes">
+        @foreach (var item in Model)
+        {
+            var totalTareas     = item.Actividades?.Count ?? 0;
+            var tareasCumplidas = item.Actividades?.Count(a => a.Estatus == "Cumplido") ?? 0;
+            var tareasVencidas  = item.Actividades?.Count(a => a.Estatus != "Cumplido" && DateTime.Now > a.FechaLimite) ?? 0;
+            var porcentaje      = totalTareas > 0 ? (int)((tareasCumplidas / (double)totalTareas) * 100) : 100;
+            var tieneRetraso    = tareasVencidas > 0;
+            var alDia           = tieneRetraso ? "false" : "true";
+
+            var iniciales = "D";
+            if (!string.IsNullOrEmpty(item.NombreCompleto))
+            {
+                var partes = item.NombreCompleto.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                iniciales = partes.Length >= 2
+                    ? $"{partes[0][0]}{partes[1][0]}".ToUpper()
+                    : partes[0].Substring(0, Math.Min(2, partes[0].Length)).ToUpper();
+            }
+
+            <div class="docente-card group relative bg-white rounded-lg border border-[#DCE4ED] shadow-xs flex flex-col justify-between overflow-hidden p-4"
+                 data-filtro="@item.NombreCompleto @item.ClaveDocente @item.CorreoInstitucional"
+                 data-contrato="@item.TipoContrato"
+                 data-aldia="@alDia">
+
+                <div class="absolute top-0 left-0 right-0 h-[2px] @(tieneRetraso ? "bg-[#D97745]" : "bg-[#0F9F83]")"></div>
+
+                <div>
+                    <div class="flex justify-between items-start gap-2.5">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-full overflow-hidden bg-[#CBD5E1] border border-[#DCE4ED] flex items-center justify-center shrink-0">
+                                @if (!string.IsNullOrEmpty(item.FotoUrl))
+                                {
+                                    <img src="@item.FotoUrl" alt="@item.NombreCompleto" loading="lazy" decoding="async" class="w-full h-full object-cover aspect-square" />
+                                }
+                                else
+                                {
+                                    <icon name="avatar-default" class="w-full h-full" />
+                                }
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-[#172B4D] text-sm group-hover:text-[#285EA8] transition-colors truncate">
+                                    @item.NombreCompleto
+                                </h3>
+                                <p class="text-[11px] font-mono text-[#64748B] tabular-nums">@item.ClaveDocente</p>
+                            </div>
+                        </div>
+
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-sm border whitespace-nowrap shrink-0 @(item.TipoContrato == "Tiempo Completo" ? "bg-[#E9EFF6] text-[#285EA8] border-[#285EA8]/30" : "bg-slate-100 text-slate-700 border-[#DCE4ED]")">
+                            @(item.TipoContrato == "Tiempo Completo" ? "TC" : "ASIG")
+                        </span>
+                    </div>
+
+                    <div class="mt-3 pt-2.5 border-t border-[#DCE4ED] flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#64748B]">
+                        <a href="mailto:@item.CorreoInstitucional" class="touch-target justify-start gap-1.5 py-1 hover:text-[#285EA8] transition-colors min-w-0 max-w-full" title="Enviar correo">
+                            <icon name="mail" class="w-3.5 h-3.5 text-[#64748B] shrink-0" />
+                            <span class="truncate">@item.CorreoInstitucional</span>
+                        </a>
+                        <span class="inline-flex items-center gap-1.5 py-1 tabular-nums shrink-0">
+                            <icon name="smartphone" class="w-3.5 h-3.5 text-[#64748B] shrink-0" />
+                            <span>@(string.IsNullOrEmpty(item.Telefono) ? "S/T" : item.Telefono)</span>
+                        </span>
+                    </div>
+
+                    <div class="mt-3 p-3 bg-[#E9EFF6]/50 rounded-md border border-[#DCE4ED] space-y-2">
+                        <div class="flex justify-between items-center text-xs gap-2">
+                            <span class="font-bold text-[#172B4D]">Compromisos académicos</span>
+                            <span class="font-bold tabular-nums @(tieneRetraso ? "text-[#D97745]" : "text-[#0F9F83]")">
+                                @porcentaje% (@tareasCumplidas/@totalTareas)
+                            </span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                            <div class="@(tieneRetraso ? "bg-[#D97745]" : "bg-[#0F9F83]") h-full rounded-full transition-[width] duration-500"
+                                 style="width: @porcentaje%"></div>
+                        </div>
+
+                        <div class="chips-scroller flex gap-1.5 pt-0.5 text-[10px] font-medium overflow-x-auto">
+                            @if (item.Actividades == null || !item.Actividades.Any())
+                            {
+                                <span class="text-[#64748B] italic py-1">Sin compromisos asignados</span>
+                            }
+                            else
+                            {
+                                @foreach (var act in item.Actividades.Take(3))
+                                {
+                                    <button type="button" onclick="abrirModalRevision(@act.Id)"
+                                            title="Clic para revisar tarea, diálogo y documentos"
+                                            class="touch-target text-left px-2.5 py-1 rounded-sm border whitespace-nowrap cursor-pointer hover:border-[#285EA8]/50 @(act.Estatus == "Cumplido" ? "bg-emerald-50 text-[#0F9F83] border-[#0F9F83]/30" : (DateTime.Now > act.FechaLimite ? "bg-amber-50 text-[#D97745] border-[#D97745]/30" : "bg-white text-slate-700 border-[#DCE4ED]"))">
+                                        @act.Titulo: @(act.Estatus == "Cumplido" ? "OK" : (DateTime.Now > act.FechaLimite ? "Atrasado" : "Pendiente"))
+                                    </button>
+                                }
+                                @if (item.Actividades.Count > 3)
+                                {
+                                    <a asp-action="Tablero"
+                                       title="Ver todas en el Tablero Kanban"
+                                       class="touch-target px-2 py-1 rounded-sm border bg-slate-100 hover:bg-slate-200 text-slate-700 border-[#DCE4ED] whitespace-nowrap tabular-nums">
+                                        +@(item.Actividades.Count - 3) más
+                                    </a>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                @{
+                    var usuarioIds = ViewBag.UsuarioIds as Dictionary<int, int>;
+                    var tieneUsuario = usuarioIds != null && usuarioIds.ContainsKey(item.Id);
+                    var usuarioId    = tieneUsuario ? usuarioIds![item.Id] : 0;
+                }
+                <div class="mt-3 pt-2 border-t border-[#DCE4ED] flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full @(tieneRetraso ? "bg-[#D97745]" : "bg-[#0F9F83]")"></span>
+                        <span class="font-bold tabular-nums @(tieneRetraso ? "text-[#D97745]" : "text-[#0F9F83]")">
+                            @(tieneRetraso ? $"{tareasVencidas} atrasada(s)" : "Al corriente")
+                        </span>
+                    </div>
+
+                    <div class="flex items-center gap-1 font-medium">
+                        <a asp-action="Edit" asp-route-id="@item.Id" aria-label="Editar @item.NombreCompleto" class="touch-target px-2 py-1 rounded-md text-[#285EA8] hover:bg-[#E9EFF6] hover:underline transition-colors" title="Editar datos administrativos">
+                            Editar
+                        </a>
+                        @if (tieneUsuario)
+                        {
+                            <span class="text-[#DCE4ED]" aria-hidden="true">|</span>
+                            <button type="button"
+                                    onclick="restablecerPassword(@usuarioId, '@item.NombreCompleto')"
+                                    aria-label="Clave temporal para @item.NombreCompleto"
+                                    class="touch-target gap-1 px-2 py-1 rounded-md text-[#D97745] hover:bg-amber-50 hover:underline transition-colors"
+                                    title="Restablecer contraseña temporal para este docente">
+                                <icon name="key-round" class="w-3 h-3 text-[#D97745]" />
+                                <span>Clave</span>
+                            </button>
+                        }
+                        <span class="text-[#DCE4ED]" aria-hidden="true">|</span>
+                        <form asp-action="Eliminar" method="post" class="inline"
+                              onsubmit="return confirm('¿Eliminar a @item.NombreCompleto del directorio? Esta acción no se puede deshacer.')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <button type="submit" aria-label="Eliminar @item.NombreCompleto" class="touch-target px-2 py-1 rounded-md text-[#C2414B] hover:bg-rose-50 hover:underline transition-colors">Eliminar</button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        }
+    </div>
+
+</div>
+
+<dialog id="modalReset" closedby="any" aria-labelledby="resetTituloModal" class="w-full max-w-md rounded-lg select-none">
+    <div id="modalResetContenido" class="bg-white w-full rounded-lg shadow-xl border border-[#DCE4ED] overflow-hidden">
+        <div class="px-5 py-3.5 bg-[#D97745] text-white flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <icon name="key-round" class="w-4 h-4 text-white" />
+                <div>
+                    <h3 id="resetTituloModal" class="font-bold text-sm">Contraseña Temporal Generada</h3>
+                    <p class="text-[11px] text-amber-100" id="resetSubtitulo">Docente</p>
+                </div>
+            </div>
+            <button type="button" onclick="cerrarModalReset()" aria-label="Cerrar ventana de contraseña temporal" class="modal-close-btn text-amber-100 hover:text-white hover:bg-white/10 text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-5 space-y-3.5 text-xs">
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-900 flex items-start gap-2">
+                <icon name="triangle-alert" class="w-4 h-4 text-[#D97745] shrink-0 mt-0.5" />
+                <p>Esta contraseña solo se muestra <strong>una vez</strong>. El docente deberá cambiarla al iniciar sesión.</p>
+            </div>
+
+            <div>
+                <label for="inputPasswordTemp" class="block font-bold text-[#172B4D] mb-1">Contraseña temporal</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="inputPasswordTemp" readonly
+                           class="w-full px-3 py-2 text-sm font-mono font-bold text-[#172B4D] bg-slate-100 border border-[#DCE4ED] rounded-md select-all tracking-widest text-center" />
+                    <button type="button" onclick="copiarPassword()"
+                            class="inline-flex items-center gap-1 px-3 py-2 bg-[#172B4D] hover:bg-[#285EA8] text-white rounded-md font-bold text-xs shrink-0 transition">
+                        <icon name="notepad-text" class="w-3.5 h-3.5 text-white" />
+                        <span>Copiar</span>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label for="inputMatriculaReset" class="block font-bold text-[#172B4D] mb-1">Usuario (matrícula)</label>
+                <input type="text" id="inputMatriculaReset" readonly
+                       class="w-full px-3 py-2 text-xs font-mono text-[#64748B] bg-slate-50 border border-[#DCE4ED] rounded-md" />
+            </div>
+
+            <button type="button" onclick="cerrarModalReset()"
+                    class="w-full py-2 bg-[#0F9F83] hover:bg-[#0D876F] text-white text-xs font-bold rounded-md transition shadow-xs flex items-center justify-center gap-1.5">
+                <icon name="check" class="w-4 h-4 text-white" />
+                <span>Entendido — clave compartida</span>
+            </button>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="modalAsignar" closedby="any" aria-labelledby="asignarTituloModal" class="w-full max-w-lg rounded-lg select-none">
+    <div id="modalContenido" class="bg-white w-full rounded-lg shadow-xl border border-[#DCE4ED] overflow-hidden">
+        <div class="px-5 py-3.5 bg-[#172B4D] text-white flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <icon name="notepad-text" class="w-4 h-4 text-white" />
+                <div>
+                    <h3 id="asignarTituloModal" class="font-bold text-sm">Asignar Compromiso Docente</h3>
+                    <p class="text-[11px] text-slate-300">Asignación individual o masiva por academia</p>
+                </div>
+            </div>
+            <button type="button" onclick="cerrarModalAsignar()" aria-label="Cerrar ventana de asignación" class="modal-close-btn text-slate-300 hover:text-white hover:bg-white/10 text-xl leading-none">&times;</button>
+        </div>
+
+        <form id="formAsignarActividad" class="p-5 space-y-3.5 text-xs">
+            <div>
+                <label for="actTitulo" class="block font-bold text-[#172B4D] mb-1">Título del compromiso</label>
+                <input type="text" id="actTitulo" required
+                       placeholder="Ej. Reporte de tutorías institucionales, Oficio de inicio..."
+                       class="w-full px-3 py-1.5 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none transition" />
+                <div class="flex flex-wrap gap-1.5 mt-1.5">
+                    <button type="button" onclick="setTitulo('Aulas virtuales mixtas','Académica')"
+                            class="touch-target px-2.5 py-1 rounded-sm bg-[#E9EFF6] hover:bg-slate-200 text-[#172B4D] text-[10px] font-semibold">Aulas mixtas</button>
+                    <button type="button" onclick="setTitulo('Captura de evaluaciones parciales','Evaluación')"
+                            class="touch-target px-2.5 py-1 rounded-sm bg-[#E9EFF6] hover:bg-slate-200 text-[#172B4D] text-[10px] font-semibold">Evaluaciones</button>
+                    <button type="button" onclick="setTitulo('Reporte de tutorías institucionales','Tutoría')"
+                            class="touch-target px-2.5 py-1 rounded-sm bg-[#E9EFF6] hover:bg-slate-200 text-[#172B4D] text-[10px] font-semibold">Tutorías</button>
+                    <button type="button" onclick="setTitulo('Oficio de inicio de curso','Administrativa')"
+                            class="touch-target px-2.5 py-1 rounded-sm bg-[#E9EFF6] hover:bg-slate-200 text-[#172B4D] text-[10px] font-semibold">Oficio inicio</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="actCategoria" class="block font-bold text-[#172B4D] mb-1">Categoría</label>
+                    <select id="actCategoria" class="w-full px-3 py-1.5 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none">
+                        <option value="Administrativa">Administrativa</option>
+                        <option value="Académica">Académica</option>
+                        <option value="Evaluación">Evaluación</option>
+                        <option value="Tutoría">Tutoría</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="actFechaLimite" class="block font-bold text-[#172B4D] mb-1">Fecha límite</label>
+                    <input type="date" id="actFechaLimite" required
+                           class="w-full px-3 py-1.5 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none" />
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-[#DCE4ED]">
+                <span class="block font-bold text-[#172B4D] mb-2">Asignar a</span>
+                <div class="grid grid-cols-2 gap-2 text-slate-700 mb-2.5">
+                    <label class="flex items-center gap-2 p-1.5 border border-[#DCE4ED] rounded-md cursor-pointer hover:bg-slate-50">
+                        <input type="radio" name="modoAsignacion" value="individual" checked onchange="toggleSelectorDocente()" class="accent-[#285EA8]" />
+                        <span>Un docente</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-1.5 border border-[#DCE4ED] rounded-md cursor-pointer hover:bg-slate-50">
+                        <input type="radio" name="modoAsignacion" value="todos" onchange="toggleSelectorDocente()" class="accent-[#285EA8]" />
+                        <span>Toda la plantilla</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-1.5 border border-[#DCE4ED] rounded-md cursor-pointer hover:bg-slate-50">
+                        <input type="radio" name="modoAsignacion" value="tiempo-completo" onchange="toggleSelectorDocente()" class="accent-[#285EA8]" />
+                        <span>Tiempo Completo</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-1.5 border border-[#DCE4ED] rounded-md cursor-pointer hover:bg-slate-50">
+                        <input type="radio" name="modoAsignacion" value="asignatura" onchange="toggleSelectorDocente()" class="accent-[#285EA8]" />
+                        <span>Asignatura</span>
+                    </label>
+                </div>
+
+                <div id="contenedorSelectDocente">
+                    <label for="actDocenteId" class="visually-hidden">Seleccionar docente</label>
+                    <select id="actDocenteId" class="w-full px-3 py-1.5 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none">
+                        <option value="">-- Selecciona un docente --</option>
+                        @foreach (var doc in Model)
+                        {
+                            <option value="@doc.Id">@doc.NombreCompleto (@doc.ClaveDocente)</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-3 border-t border-[#DCE4ED]">
+                <button type="button" onclick="cerrarModalAsignar()"
+                        class="px-4 py-1.5 border border-[#DCE4ED] rounded-md text-[#64748B] hover:bg-slate-100 font-semibold transition">
+                    Cancelar
+                </button>
+                <button type="submit" id="btnGuardarAsignacion"
+                        class="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#285EA8] hover:bg-[#172B4D] text-white rounded-md font-bold transition shadow-xs">
+                    <icon name="check" class="w-3.5 h-3.5 text-white" />
+                    <span>Asignar Compromiso</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<dialog id="modalInvitar" closedby="any" aria-labelledby="invitarTituloModal" class="w-full max-w-md rounded-lg select-none">
+    <div id="modalInvitarContenido" class="bg-white w-full rounded-lg shadow-xl border border-[#DCE4ED] overflow-hidden">
+        <div class="px-5 py-3.5 bg-[#172B4D] text-white flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <icon name="link-2" class="w-4 h-4 text-white" />
+                <div>
+                    <h3 id="invitarTituloModal" class="font-bold text-sm">Invitar Docente al Sistema</h3>
+                    <p class="text-[11px] text-slate-300">Enlace de auto-registro único válido por 7 días</p>
+                </div>
+            </div>
+            <button type="button" onclick="cerrarModalInvitar()" aria-label="Cerrar ventana de invitación" class="modal-close-btn text-slate-300 hover:text-white hover:bg-white/10 text-xl leading-none">&times;</button>
+        </div>
+
+        <div class="p-5 space-y-3.5 text-xs">
+            <div>
+                <label for="invMatricula" class="block font-bold text-[#172B4D] mb-1">Matrícula o clave sugerida (opcional)</label>
+                <input type="text" id="invMatricula"
+                       placeholder="Ej. D-115 — el docente la confirmará al registrarse"
+                       class="w-full px-3 py-1.5 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none" />
+            </div>
+
+            <button type="button" onclick="solicitarEnlace()" id="btnGenerarLink"
+                    class="w-full py-2 bg-[#285EA8] text-white font-bold rounded-md hover:bg-[#172B4D] active:scale-95 transition flex items-center justify-center gap-2 shadow-xs">
+                <icon name="link-2" class="w-3.5 h-3.5 text-white" />
+                <span>Generar Enlace Único</span>
+            </button>
+
+            <div id="contenedorResultadoLink" class="hidden pt-3 border-t border-[#DCE4ED] space-y-2">
+                <label for="inputUrlGenerada" class="block font-bold text-[#0F9F83]">¡Enlace creado! Válido por 7 días:</label>
+                <div class="flex items-center gap-1.5">
+                    <input type="text" id="inputUrlGenerada" readonly
+                           class="w-full px-3 py-1.5 text-xs font-mono bg-slate-100 border border-[#DCE4ED] rounded-md text-[#172B4D] select-all" />
+                    <button type="button" onclick="copiarUrl()"
+                            class="inline-flex items-center gap-1 px-3 py-1.5 bg-[#172B4D] hover:bg-[#285EA8] text-white rounded-md font-bold shrink-0 text-xs transition">
+                        <icon name="notepad-text" class="w-3 h-3 text-white" />
+                        <span>Copiar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+@section Scripts {
+<script>
+    function setTitulo(titulo, categoria) {
+        document.getElementById('actTitulo').value = titulo;
+        document.getElementById('actCategoria').value = categoria;
+    }
+
+    async function restablecerPassword(usuarioId, nombre) {
+        if (!confirm(`¿Restablecer la contraseña de "${nombre}"?\nSe generará una contraseña temporal que deberás compartirle.`)) return;
+
+        try {
+            const token = document.querySelector('#globalCsrfForm [name="__RequestVerificationToken"]')?.value ?? '';
+            const resp = await fetch('/Auth/RestablecerPassword', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    `usuarioId=${usuarioId}&__RequestVerificationToken=${encodeURIComponent(token)}`
+            });
+            const res = await resp.json();
+
+            if (res.success) {
+                document.getElementById('inputPasswordTemp').value   = res.passwordTemporal;
+                document.getElementById('inputMatriculaReset').value = res.matricula;
+                document.getElementById('resetSubtitulo').textContent = res.nombre;
+
+                const modal     = document.getElementById('modalReset');
+                const contenido = document.getElementById('modalResetContenido');
+                abrirDialogoModal(modal, contenido);
+            } else {
+                alert(res.message || 'Error al restablecer la contraseña.');
+            }
+        } catch (err) {
+            alert('Error de conexión al servidor.');
+        }
+    }
+
+    function cerrarModalReset() {
+        const modal     = document.getElementById('modalReset');
+        const contenido = document.getElementById('modalResetContenido');
+        cerrarDialogoModal(modal, contenido, () => {
+            document.getElementById('inputPasswordTemp').value = '';
+        });
+    }
+
+    function copiarPassword() {
+        const val = document.getElementById('inputPasswordTemp').value;
+        navigator.clipboard.writeText(val).then(() => alert('Contraseña temporal copiada al portapapeles.'));
+    }
+
+    function abrirModalAsignar() {
+        const modal    = document.getElementById('modalAsignar');
+        const contenido = document.getElementById('modalContenido');
+        const hoy      = new Date();
+        hoy.setDate(hoy.getDate() + 7);
+        document.getElementById('actFechaLimite').value = hoy.toISOString().split('T')[0];
+        abrirDialogoModal(modal, contenido);
+    }
+
+    function cerrarModalAsignar() {
+        const modal    = document.getElementById('modalAsignar');
+        const contenido = document.getElementById('modalContenido');
+        cerrarDialogoModal(modal, contenido);
+    }
+
+    function toggleSelectorDocente() {
+        const modo   = document.querySelector('input[name="modoAsignacion"]:checked').value;
+        const select = document.getElementById('contenedorSelectDocente');
+        select.classList.toggle('hidden', modo !== 'individual');
+    }
+
+    document.getElementById('formAsignarActividad').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn  = document.getElementById('btnGuardarAsignacion');
+        btn.disabled = true;
+        btn.textContent = 'Asignando...';
+
+        const modo      = document.querySelector('input[name="modoAsignacion"]:checked').value;
+        const docenteId = document.getElementById('actDocenteId').value;
+
+        if (modo === 'individual' && !docenteId) {
+            alert('Selecciona un docente antes de continuar.');
+            btn.disabled = false;
+            btn.textContent = 'Asignar Compromiso';
+            return;
+        }
+
+        const payload = {
+            titulo:         document.getElementById('actTitulo').value,
+            categoria:      document.getElementById('actCategoria').value,
+            fechaLimite:    document.getElementById('actFechaLimite').value,
+            modoAsignacion: modo,
+            docenteId:      modo === 'individual' ? parseInt(docenteId) : null
+        };
+
+        try {
+            const resp = await fetch('/Docentes/AsignarActividades', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload)
+            });
+            const res = await resp.json();
+            if (res.success) {
+                alert(`Se asignaron ${res.total} compromiso(s) correctamente.`);
+                cerrarModalAsignar();
+                window.location.reload();
+            } else {
+                alert(res.message || 'Error al asignar.');
+            }
+        } catch {
+            alert('Error de conexión con el servidor.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Asignar Compromiso';
+        }
+    });
+
+    function abrirModalInvitar() {
+        const modal    = document.getElementById('modalInvitar');
+        const contenido = document.getElementById('modalInvitarContenido');
+        document.getElementById('contenedorResultadoLink').classList.add('hidden');
+        document.getElementById('invMatricula').value = '';
+        abrirDialogoModal(modal, contenido);
+    }
+
+    function cerrarModalInvitar() {
+        const modal    = document.getElementById('modalInvitar');
+        const contenido = document.getElementById('modalInvitarContenido');
+        cerrarDialogoModal(modal, contenido);
+    }
+
+    async function solicitarEnlace() {
+        const btn      = document.getElementById('btnGenerarLink');
+        btn.disabled   = true;
+        btn.textContent = 'Generando...';
+        try {
+            const resp = await fetch('/Docentes/GenerarInvitacion', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ matriculaSugerida: document.getElementById('invMatricula').value })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                document.getElementById('inputUrlGenerada').value = data.url;
+                document.getElementById('contenedorResultadoLink').classList.remove('hidden');
+            }
+        } catch {
+            alert('Error al generar la invitación.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Generar Enlace Único';
+        }
+    }
+
+    function copiarUrl() {
+        navigator.clipboard.writeText(document.getElementById('inputUrlGenerada').value);
+        alert('¡Enlace copiado al portapapeles!');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const cards     = Array.from(document.querySelectorAll('.docente-card'));
+        const kpis      = document.querySelectorAll('.kpi-card');
+        const buscador  = document.getElementById('buscadorDocente');
+        const noResults = document.getElementById('noResults');
+        const filtros   = document.querySelectorAll('.filtro-btn');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const cardMeta = cards.map(card => ({
+            el: card,
+            texto: (card.getAttribute('data-filtro') || '').toLowerCase(),
+            contrato: card.getAttribute('data-contrato') || '',
+            alDia: card.getAttribute('data-aldia') === 'true'
+        }));
+
+        if (typeof gsap !== 'undefined' && !reduceMotion) {
+            requestAnimationFrame(() => {
+                gsap.fromTo(kpis,
+                    { opacity: 0, y: -6 },
+                    { opacity: 1, y: 0, duration: 0.24, stagger: 0.025, ease: 'power3.out', clearProps: 'opacity,transform' }
+                );
+
+                gsap.fromTo(cards,
+                    { opacity: 0, y: 8 },
+                    { opacity: 1, y: 0, duration: 0.28, stagger: { amount: 0.14 }, ease: 'power3.out', clearProps: 'opacity,transform' }
+                );
+            });
+        }
+
+        let filtroActivo = 'todos';
+
+        function aplicarFiltros(animarTransicion = false) {
+            const query = buscador.value.toLowerCase().trim();
+            const visiblesEls = [];
+
+            for (let i = 0; i < cardMeta.length; i++) {
+                const item = cardMeta[i];
+                const matchTexto = !query || item.texto.includes(query);
+                const matchTipo  =
+                    filtroActivo === 'todos'  ||
+                    filtroActivo === item.contrato ||
+                    (filtroActivo === 'al-dia' && item.alDia);
+
+                if (matchTexto && matchTipo) {
+                    visiblesEls.push(item.el);
+                    item.el.style.display = 'flex';
+                } else {
+                    item.el.style.display = 'none';
+                }
+            }
+
+            if (animarTransicion && visiblesEls.length > 0 && typeof gsap !== 'undefined' && !reduceMotion) {
+                gsap.killTweensOf(visiblesEls);
+                gsap.fromTo(visiblesEls,
+                    { opacity: 0, y: 6 },
+                    { opacity: 1, y: 0, duration: 0.2, stagger: { amount: 0.08 }, ease: 'power3.out', overwrite: 'auto', clearProps: 'opacity,transform' }
+                );
+            }
+
+            document.getElementById('contadorFiltro').textContent = visiblesEls.length;
+            noResults.classList.toggle('hidden', visiblesEls.length > 0);
+        }
+
+        buscador.addEventListener('input', () => aplicarFiltros(false));
+        buscador.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                buscador.value = '';
+                aplicarFiltros(false);
+            }
+        });
+
+        filtros.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filtros.forEach(b => {
+                    b.classList.remove('bg-[#172B4D]', 'text-white', 'shadow-xs');
+                    b.classList.add('bg-[#E9EFF6]', 'text-[#172B4D]');
+                });
+                btn.classList.add('bg-[#172B4D]', 'text-white', 'shadow-xs');
+                btn.classList.remove('bg-[#E9EFF6]', 'text-[#172B4D]');
+                filtroActivo = btn.getAttribute('data-tipo');
+                aplicarFiltros(true);
+            });
+        });
+
+        if (new URLSearchParams(window.location.search).get('openAssign') === '1') {
+            abrirModalAsignar();
+        }
+    });
+</script>
+}

@@ -1,0 +1,117 @@
+@model DirectorioDocente.Models.ActividadDocente
+
+@{
+    var stripe        = ViewData["Stripe"]?.ToString()  ?? "#64748B";
+    var vencida       = (bool)(ViewData["Vencida"]      ?? false);
+    var nombreDocente = Model.Docente?.NombreCompleto    ?? "Docente no asignado";
+    var matricula     = Model.Docente?.ClaveDocente      ?? "S/M";
+    var tieneDocumentos = Model.Documentos?.Any()        ?? false;
+
+    string BadgeClasses(string cat) => cat switch {
+        "Académica"      => "background:#E9EFF6; color:#285EA8;",
+        "Evaluación"     => "background:#FFFBEB; color:#D97745;",
+        "Tutoría"        => "background:#ECFEFF; color:#0E7490;",
+        "Administrativa" => "background:#ECFDF5; color:#0F9F83;",
+        _                => "background:#F1F5F9; color:#64748B;"
+    };
+}
+
+<div id="act-@Model.Id" draggable="true" ondragstart="handleDragStart(event, @Model.Id)"
+     class="odoo-card bg-white rounded-md border border-[#DCE4ED] p-3 shadow-xs cursor-grab active:cursor-grabbing relative overflow-hidden select-none">
+
+    <div class="absolute top-0 left-0 right-0 h-[2px]" style="background-color: @stripe;"></div>
+
+    <div class="flex items-start justify-between gap-1.5 mb-1 pt-0.5">
+        <h3 class="font-bold text-xs text-[#172B4D] leading-snug flex-1 truncate" title="@Model.Titulo">
+            @Model.Titulo
+        </h3>
+        @if (vencida)
+        {
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-rose-50 text-[#C2414B] border border-[#C2414B]/30 shrink-0">Vencido</span>
+        }
+    </div>
+
+    <div class="text-[11px] text-[#64748B] truncate mb-2" title="@nombreDocente (@matricula)">
+        <span class="font-medium text-[#172B4D]">@nombreDocente</span>
+        <span class="text-[#64748B] font-mono text-[10px] tabular-nums">· @matricula</span>
+    </div>
+
+    <div class="flex flex-wrap gap-1 mb-2">
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-sm" style="@BadgeClasses(Model.Categoria)">
+            @Model.Categoria
+        </span>
+
+        @if (Model.Documentos?.Any() == true)
+        {
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-[#E9EFF6] text-[#285EA8] inline-flex items-center gap-1 tabular-nums">
+                <icon name="notepad-text" class="w-2.5 h-2.5 inline" />
+                <span>@Model.Documentos.Count doc(s)</span>
+            </span>
+        }
+    </div>
+
+    <p class="text-[10px] text-[#64748B] mb-2 tabular-nums">
+        Límite: <span class="@(vencida ? "text-[#C2414B] font-bold" : "text-[#172B4D] font-semibold")">
+            @Model.FechaLimite.ToString("dd/MM/yyyy")
+        </span>
+    </p>
+
+    <div class="flex items-center justify-between pt-2 border-t border-[#DCE4ED]">
+        <div class="w-5 h-5 rounded-full bg-[#172B4D] text-white text-[9px] font-bold flex items-center justify-center overflow-hidden">
+            @(nombreDocente.Length > 0 ? nombreDocente.Substring(0, 1).ToUpper() : "D")
+        </div>
+
+        <div class="flex items-center gap-1.5">
+            @if (!string.IsNullOrWhiteSpace(Model.ComentarioDirector))
+            {
+                <button type="button"
+                        aria-label="Ver observaciones de dirección para @Model.Titulo"
+                        class="touch-target text-[10px] px-2 py-1 rounded-sm bg-amber-50 text-[#D97745] border border-[#D97745]/30 gap-1 cursor-pointer"
+                        onclick="event.stopPropagation(); abrirModalRevision(@Model.Id)"
+                        title="Observación de Dirección: @Model.ComentarioDirector">
+                    <icon name="message-square-text" class="w-3 h-3 inline text-[#D97745]" />
+                </button>
+            }
+
+            @if (Model.Documentos?.Any() == true)
+            {
+                <button type="button"
+                        onclick="event.stopPropagation(); abrirModalRevision(@Model.Id)"
+                        title="Previsualizar y revisar entrega"
+                        class="touch-target text-[10px] px-2.5 py-1 rounded-sm bg-[#E9EFF6] text-[#285EA8] hover:bg-slate-200 font-bold gap-1">
+                    <icon name="eye" class="w-3 h-3 inline" />
+                    <span>Revisar</span>
+                </button>
+
+                @foreach (var doc in Model.Documentos.Take(1))
+                {
+                    <a href="@Url.Action("DescargarDocumento","Docentes",new{id=doc.Id})"
+                       aria-label="Descargar @doc.NombreOriginal"
+                       title="Descarga rápida: @doc.NombreOriginal"
+                       class="touch-target text-[10px] px-2 py-1 rounded-sm bg-slate-100 text-[#172B4D] hover:bg-slate-200 font-semibold">
+                        <icon name="download" class="w-3 h-3 inline text-[#172B4D]" />
+                    </a>
+                }
+            }
+            else
+            {
+                <button type="button"
+                        onclick="event.stopPropagation(); abrirModalRevision(@Model.Id)"
+                        class="touch-target px-2 py-1 rounded-sm text-[10px] text-[#64748B] hover:text-[#172B4D] hover:bg-slate-100 font-semibold hover:underline">
+                    Detalles
+                </button>
+            }
+
+            @if (Model.Estatus == "Cumplido")
+            {
+                <button type="button"
+                        aria-label="Eliminar actividad @Model.Titulo"
+                        onclick="event.stopPropagation(); eliminarActividadKanban(@Model.Id, '@Model.Titulo.Replace("'", "\\'")')"
+                        class="touch-target text-[10px] px-2 py-1 rounded-sm hover:bg-rose-50 text-[#64748B] hover:text-[#C2414B]"
+                        title="Eliminar actividad completada">
+                    <icon name="trash-2" class="w-3 h-3 inline" />
+                </button>
+            }
+        </div>
+    </div>
+</div>

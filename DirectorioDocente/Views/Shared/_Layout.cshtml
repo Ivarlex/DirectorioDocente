@@ -1,0 +1,1328 @@
+@using Microsoft.EntityFrameworkCore
+@inject DirectorioDocente.Data.ApplicationDbContext DbContext
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#E9EFF6]">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#172B4D" />
+    <title>@ViewData["Title"] - SIGED</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        :root {
+            --ink: #172B4D;
+            --blue-upvm: #285EA8;
+            --bg-general: #E9EFF6;
+            --surface: #FFFFFF;
+            --jade: #0F9F83;
+            --slate-muted: #64748B;
+            --border-line: #DCE4ED;
+
+            --sem-ok: #0F9F83;
+            --sem-warning: #D97745;
+            --sem-danger: #C2414B;
+            --sem-info: #285EA8;
+
+            --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+            --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+            --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+            --target-size: 28px;
+        }
+
+        .kpi-band-grid {
+            background-color: #DCE4ED;
+            gap: 1px;
+        }
+        .kpi-band-grid > .kpi-card {
+            background-color: #FFFFFF;
+        }
+
+        .touch-target {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            min-width: 28px;
+        }
+        .modal-close-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+        }
+        @@media (min-width: 1024px) {
+            #btnCloseSidebarMobile {
+                display: none !important;
+            }
+        }
+
+        html {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+            scrollbar-width: thin;
+            scrollbar-color: #CBD5E1 transparent;
+            scroll-padding-top: 4.25rem;
+        }
+
+        body {
+            overflow-wrap: break-word;
+        }
+
+        :where(a, code) {
+            overflow-wrap: anywhere;
+        }
+
+        :where(h1, h2, h3) {
+            text-wrap: balance;
+            letter-spacing: -0.02em;
+        }
+        :where(p, li) {
+            text-wrap: pretty;
+        }
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
+        :where(button, a, [role="button"], input, select, textarea, label) {
+            touch-action: manipulation;
+        }
+        :where(button, [role="button"]) {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            transition: transform 150ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms var(--ease-out);
+        }
+        @@media (prefers-reduced-motion: no-preference) {
+            :where(button:not(:disabled), [role="button"]:not(:disabled)):active {
+                transform: scale(0.97);
+            }
+        }
+        :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+            outline: 2px solid #285EA8;
+            outline-offset: 2px;
+        }
+
+        @@media (pointer: coarse) {
+            :root {
+                --target-size: 44px;
+            }
+            :where(input:not([type="checkbox"], [type="radio"]), textarea, select) {
+                font-size: 16px !important;
+            }
+            :where(button, select, input:not([type="checkbox"], [type="radio"]), .sidebar-nav-item) {
+                min-block-size: 38px;
+            }
+        }
+
+        .dropdown-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-trigger {
+            cursor: pointer;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dd-arrow {
+            transform-origin: center center;
+            display: inline-block;
+            transition: transform 0.2s var(--ease-out);
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: #FFFFFF;
+            border: 1px solid #DCE4ED;
+            border-radius: 6px;
+            min-width: 190px;
+            box-shadow: 0 10px 25px -5px rgba(23, 43, 77, 0.12), 0 8px 10px -6px rgba(23, 43, 77, 0.08);
+            pointer-events: none;
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(-8px) scale(0.98);
+            transform-origin: top right;
+            z-index: 60;
+            padding: 4px;
+        }
+        .dropdown-menu.align-left {
+            right: auto;
+            left: 0;
+            transform-origin: top left;
+        }
+        .dropdown-menu.open {
+            pointer-events: auto;
+        }
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            color: #172B4D;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.15s ease, color 0.15s ease;
+            text-decoration: none;
+            border: none;
+            background: transparent;
+            text-align: left;
+        }
+        @@media (hover: hover) and (pointer: fine) {
+            .dropdown-item:hover {
+                background-color: #E9EFF6;
+                color: #285EA8;
+            }
+        }
+
+        @@media (min-width: 1024px) {
+            .sidebar-collapsed {
+                width: 4.75rem !important;
+            }
+            .sidebar-collapsed .sidebar-label,
+            .sidebar-collapsed .sidebar-extra {
+                display: none !important;
+                opacity: 0;
+            }
+            .sidebar-collapsed .sidebar-nav-item {
+                justify-content: center !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            .sidebar-collapsed .sidebar-nav-item:is(:hover, :focus-visible)::after {
+                content: attr(data-tooltip) / "";
+                position: absolute;
+                left: calc(100% + 0.6rem);
+                top: 50%;
+                transform: translateY(-50%);
+                background: #172B4D;
+                border: 1px solid #285EA8;
+                color: #ffffff;
+                font-size: 0.72rem;
+                font-weight: 700;
+                padding: 0.35rem 0.6rem;
+                border-radius: 4px;
+                white-space: nowrap;
+                z-index: 50;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                pointer-events: none;
+            }
+            #mainContentWorkspace {
+                border-top-left-radius: 14px;
+                border-bottom-left-radius: 14px;
+                box-shadow: -6px 0 20px -4px rgba(15, 23, 42, 0.14);
+            }
+        }
+
+        .visually-hidden:where(:not(:focus-within, :active)) {
+            position: absolute !important;
+            clip-path: inset(50%) !important;
+            overflow: hidden !important;
+            width: 1px !important;
+            height: 1px !important;
+            margin: -1px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            white-space: nowrap !important;
+        }
+
+        dialog:modal {
+            overscroll-behavior: contain;
+            margin: auto;
+            padding: 0;
+            border: none;
+            background: transparent;
+            max-width: min(100vw - 1.25rem, 64rem);
+            max-height: 92dvh;
+        }
+        dialog::backdrop {
+            background-color: rgba(15, 23, 42, 0.62);
+            backdrop-filter: blur(2px);
+            overflow: hidden;
+            overscroll-behavior: contain;
+        }
+    </style>
+</head>
+<body class="min-h-dvh flex flex-col font-sans text-[#172B4D] antialiased selection:bg-[#285EA8] selection:text-white bg-[#E9EFF6]">
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        var esAdmin = User.IsInRole("Administrador");
+        var nombreCompleto = User.FindFirst("NombreCompleto")?.Value ?? User.Identity.Name ?? "Usuario";
+        var fotoUrlClaim = User.FindFirst("FotoUrl");
+        var fotoUrl = fotoUrlClaim?.Value ?? "";
+        if (fotoUrlClaim == null && !string.IsNullOrWhiteSpace(User.Identity.Name))
+        {
+            var userNorm = User.Identity.Name.Trim().ToLower();
+            var usrActual = DbContext.Usuarios
+                .Include(u => u.Docente)
+                .AsNoTracking()
+                .FirstOrDefault(u => u.NombreUsuario == userNorm);
+            if (usrActual != null)
+            {
+                nombreCompleto = usrActual.Docente?.NombreCompleto
+                    ?? (!string.IsNullOrWhiteSpace(usrActual.NombreCompleto) ? usrActual.NombreCompleto : nombreCompleto);
+                fotoUrl = usrActual.Docente?.FotoUrl ?? usrActual.FotoUrl ?? "";
+            }
+        }
+        var requiereCambio = User.FindFirst("RequiereCambioPassword")?.Value == "True";
+        var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+        var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+
+        <div class="min-h-dvh p-1.5 sm:p-2.5 lg:p-3.5 flex flex-col flex-1">
+            <div id="dashboardAppShell" class="flex-1 bg-[#172B4D] rounded-lg shadow-sm border border-[#DCE4ED] overflow-hidden flex flex-col lg:flex-row relative">
+
+                <div id="sidebarBackdrop" class="fixed inset-0 bg-[#172B4D]/60 backdrop-blur-xs z-40 hidden lg:hidden" onclick="toggleSidebarMobile()"></div>
+
+                <aside id="mainSidebar"
+                       class="fixed lg:static inset-y-0 left-0 z-50 bg-[#172B4D] text-white flex flex-col justify-between shrink-0 lg:transition-[width] lg:duration-200 w-[248px] max-w-[82vw] select-none -translate-x-full lg:translate-x-0"
+                       style="padding-bottom: env(safe-area-inset-bottom, 0px);">
+
+                    <div>
+                        <div class="h-14 px-4 flex items-center justify-between border-b border-white/10">
+                            <a asp-controller="Docentes" asp-action="@(esAdmin ? "Index" : "MisActividades")"
+                               class="flex items-center gap-2.5 overflow-hidden group">
+                                <div class="w-8 h-8 rounded-md bg-white text-[#172B4D] flex items-center justify-center font-black shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+                                    <icon name="graduation-cap" class="w-4 h-4 text-[#172B4D]" />
+                                </div>
+                                <div class="sidebar-label leading-tight">
+                                    <p class="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+                                        SIGED <span class="text-[9px] bg-white/15 text-slate-200 font-bold px-1.5 py-0.2 rounded">UPVM</span>
+                                    </p>
+                                    <p class="text-[10px] text-slate-300 font-medium">Gestión Académica</p>
+                                </div>
+                            </a>
+
+                            <button id="btnToggleSidebar" type="button" onclick="toggleSidebarDesktop()"
+                                    aria-label="Alternar menú lateral"
+                                    class="hidden lg:inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-300 hover:text-white hover:bg-white/10 transition"
+                                    title="Alternar menú lateral">
+                                <icon name="panel-left" class="w-4 h-4" />
+                            </button>
+
+                            <button id="btnCloseSidebarMobile" type="button" onclick="toggleSidebarMobile()"
+                                    aria-label="Cerrar menú de navegación"
+                                    class="lg:hidden inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-300 hover:text-white hover:bg-white/10 transition">
+                                <icon name="x" class="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <nav aria-label="Principal" class="px-2.5 py-3 space-y-1 overflow-y-auto" id="sidebarNav">
+                            @if (esAdmin)
+                            {
+                                var actDirectorio = currentController == "Docentes" && currentAction == "Index";
+                                <a asp-controller="Docentes" asp-action="Index"
+                                   data-tooltip="Directorio Docente"
+                                   class="sidebar-nav-item flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs transition-colors duration-150 relative group @(actDirectorio ? "bg-[#285EA8] text-white shadow-xs" : "text-slate-300 hover:text-white hover:bg-white/10")">
+                                    <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                        <icon name="users" class="w-4 h-4" />
+                                    </span>
+                                    <span class="sidebar-label truncate">Directorio Docente</span>
+                                    @if (actDirectorio)
+                                    {
+                                        <span class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0F9F83] rounded-r"></span>
+                                    }
+                                </a>
+
+                                var actKanban = currentController == "Docentes" && currentAction == "Tablero";
+                                <a asp-controller="Docentes" asp-action="Tablero"
+                                   data-tooltip="Seguimiento · Kanban"
+                                   class="sidebar-nav-item flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs transition-colors duration-150 relative group @(actKanban ? "bg-[#285EA8] text-white shadow-xs" : "text-slate-300 hover:text-white hover:bg-white/10")">
+                                    <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                        <icon name="layout-dashboard" class="w-4 h-4" />
+                                    </span>
+                                    <span class="sidebar-label truncate">Seguimiento · Kanban</span>
+                                    @if (actKanban)
+                                    {
+                                        <span class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0F9F83] rounded-r"></span>
+                                    }
+                                </a>
+
+                                <button type="button" onclick="abrirModalReporteMensual()"
+                                        data-tooltip="Reporte Mensual"
+                                        class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors duration-150 text-left group">
+                                    <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                        <icon name="calendar" class="w-4 h-4" />
+                                    </span>
+                                    <span class="sidebar-label truncate">Reporte Mensual</span>
+                                </button>
+
+                                <button type="button" onclick="abrirModalAsignarGlobal()"
+                                        data-tooltip="Asignar Actividad"
+                                        class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs text-slate-300 hover:text-white hover:bg-white/10 transition-colors duration-150 text-left group">
+                                    <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                        <icon name="notepad-text" class="w-4 h-4" />
+                                    </span>
+                                    <span class="sidebar-label truncate">Asignar Actividad</span>
+                                </button>
+
+                                var actCreate = currentController == "Docentes" && currentAction == "Create";
+                                <a asp-controller="Docentes" asp-action="Create"
+                                   data-tooltip="Nuevo Docente"
+                                   class="sidebar-nav-item flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs transition-colors duration-150 relative group @(actCreate ? "bg-[#285EA8] text-white shadow-xs" : "text-slate-300 hover:text-white hover:bg-white/10")">
+                                    <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                        <icon name="user-round-group" class="w-4 h-4" />
+                                    </span>
+                                    <span class="sidebar-label truncate">Nuevo Docente</span>
+                                    @if (actCreate)
+                                    {
+                                        <span class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0F9F83] rounded-r"></span>
+                                    }
+                                </a>
+                            }
+                            else
+                            {
+                                var actMis = currentController == "Docentes" && currentAction == "MisActividades";
+                                <a asp-controller="Docentes" asp-action="MisActividades"
+                                   data-tooltip="Mis Compromisos"
+                                   class="sidebar-nav-item flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs transition-colors duration-150 relative group @(actMis ? "bg-[#285EA8] text-white shadow-xs" : "text-slate-300 hover:text-white hover:bg-white/10")">
+                                    <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                        <icon name="notepad-text" class="w-4 h-4" />
+                                    </span>
+                                    <span class="sidebar-label truncate">Mis Compromisos</span>
+                                    @if (actMis)
+                                    {
+                                        <span class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0F9F83] rounded-r"></span>
+                                    }
+                                </a>
+                            }
+
+                            @{
+                                var actPerfil = currentController == "Docentes" && currentAction == "MiPerfil";
+                            }
+                            <a asp-controller="Docentes" asp-action="MiPerfil"
+                               data-tooltip="Mi Perfil"
+                               class="sidebar-nav-item flex items-center gap-3 px-3 py-2 rounded-md font-semibold text-xs transition-colors duration-150 relative group @(actPerfil ? "bg-[#285EA8] text-white shadow-xs" : "text-slate-300 hover:text-white hover:bg-white/10")">
+                                <span class="w-4 h-4 flex items-center justify-center shrink-0">
+                                    <icon name="users" class="w-4 h-4" />
+                                </span>
+                                <span class="sidebar-label truncate">Mi Perfil</span>
+                                @if (actPerfil)
+                                {
+                                    <span class="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0F9F83] rounded-r"></span>
+                                }
+                            </a>
+                        </nav>
+                    </div>
+
+                    <div class="p-3 border-t border-white/10 space-y-2 bg-black/15" id="sidebarFooter">
+                        <a asp-controller="Docentes" asp-action="MiPerfil"
+                           class="flex items-center gap-2.5 p-1.5 rounded-md hover:bg-white/10 text-white transition block group"
+                           title="Ver y editar mi perfil">
+                            <div id="sidebarUserAvatar" class="w-8 h-8 rounded-full overflow-hidden bg-[#CBD5E1] border border-white/20 flex items-center justify-center shadow-xs shrink-0">
+                                @if (!string.IsNullOrEmpty(fotoUrl))
+                                {
+                                    <img src="@fotoUrl" alt="@nombreCompleto" class="w-full h-full object-cover aspect-square" />
+                                }
+                                else
+                                {
+                                    <icon name="avatar-default" class="w-full h-full" />
+                                }
+                            </div>
+                            <div class="sidebar-label flex-1 min-w-0">
+                                <p id="sidebarUserName" class="text-xs font-semibold truncate leading-tight text-white group-hover:text-slate-100">@nombreCompleto</p>
+                                <p class="text-[10px] text-slate-300 font-medium">@(esAdmin ? "Director de Área" : "Docente")</p>
+                            </div>
+                        </a>
+
+                        <div class="flex items-center gap-1.5 pt-1 border-t border-white/10">
+                            <a asp-controller="Auth" asp-action="CambiarPassword"
+                               class="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-semibold @(requiereCambio ? "bg-amber-400 text-amber-950 font-bold" : "text-slate-300 hover:text-white hover:bg-white/10") transition"
+                               title="@(requiereCambio ? "Contraseña temporal obligatoria" : "Cambiar contraseña")">
+                                <icon name="@(requiereCambio ? "triangle-alert" : "key-round")" class="w-3 h-3 shrink-0" />
+                                <span class="sidebar-label">Clave</span>
+                            </a>
+
+                            <form asp-controller="Auth" asp-action="Logout" method="post" class="flex-1 inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit"
+                                        class="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-semibold text-rose-300 hover:text-white hover:bg-rose-600/30 transition"
+                                        title="Cerrar sesión">
+                                    <icon name="log-out" class="w-3 h-3 shrink-0" />
+                                    <span class="sidebar-label">Salir</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </aside>
+
+                <div id="mainContentWorkspace" class="flex-1 bg-white flex flex-col min-w-0 relative overflow-y-auto">
+
+                    <header class="h-14 px-5 lg:px-6 border-b border-[#DCE4ED] flex items-center justify-between shrink-0 bg-white sticky top-0 z-20">
+                        <div class="flex items-center gap-3">
+                            <button id="btnMobileMenu" type="button" onclick="toggleSidebarMobile()"
+                                    class="lg:hidden p-1.5 rounded-md text-[#64748B] hover:text-[#172B4D] hover:bg-slate-100 transition"
+                                    aria-label="Abrir menú de navegación">
+                                <icon name="menu" class="w-5 h-5" />
+                            </button>
+
+                            <div class="flex items-center gap-2 text-xs font-semibold text-[#64748B]">
+                                <span class="text-[#285EA8]">SIGED</span>
+                                <span>/</span>
+                                <span class="text-[#172B4D]">@ViewData["Title"]</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2 px-2.5 py-1 rounded-sm bg-[#E9EFF6] text-[#285EA8] text-xs font-bold">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#0F9F83]"></span>
+                                <span>Ciclo 2026</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    @if (TempData["Exito"] != null)
+                    {
+                        <div id="flashMsg" class="bg-emerald-50 border-b border-[#0F9F83]/30 text-[#0F9F83] text-xs font-semibold px-5 py-2 flex items-center gap-2 justify-center">
+                            <icon name="check" class="w-4 h-4 text-[#0F9F83] inline" />
+                            <span>@TempData["Exito"]</span>
+                        </div>
+                    }
+                    @if (TempData["Error"] != null)
+                    {
+                        <div id="flashMsg" class="bg-rose-50 border-b border-[#C2414B]/30 text-[#C2414B] text-xs font-semibold px-5 py-2 flex items-center gap-2 justify-center">
+                            <icon name="triangle-alert" class="w-4 h-4 text-[#C2414B] inline" />
+                            <span>@TempData["Error"]</span>
+                        </div>
+                    }
+
+                    <main class="flex-1 p-4 sm:p-5 lg:p-6">
+                        @RenderBody()
+                    </main>
+
+                    <footer class="px-5 py-3 border-t border-[#DCE4ED] text-center text-xs text-[#64748B]">
+                        Sistema Integral de Gestión Docente &copy; @DateTime.Now.Year &nbsp;·&nbsp; Universidad Politécnica del Valle de México
+                    </footer>
+                </div>
+
+            </div>
+        </div>
+    }
+    else
+    {
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+            @RenderBody()
+        </main>
+        <footer class="relative z-10 border-t border-[#DCE4ED] bg-white/95 backdrop-blur-xs py-4 text-center text-xs text-[#64748B]">
+            Sistema Integral de Gestión Docente &copy; @DateTime.Now.Year &nbsp;·&nbsp; UPVM
+        </footer>
+    }
+
+    <dialog id="modalRevision" closedby="any" aria-labelledby="revTitulo" class="w-full max-w-5xl rounded-lg select-none">
+        <div id="modalRevisionContenido" class="bg-white w-full max-h-[92vh] rounded-lg shadow-xl border border-[#DCE4ED] overflow-hidden flex flex-col">
+
+            <div class="px-5 py-3.5 bg-[#172B4D] text-white flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-md bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
+                        <icon name="eye" class="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm sm:text-base text-white truncate max-w-md sm:max-w-lg" id="revTitulo">
+                            Cargando actividad...
+                        </h3>
+                        <p class="text-xs text-slate-300 font-medium" id="revDocente">Docente</p>
+                    </div>
+                </div>
+                <button type="button" onclick="cerrarModalRevision()" aria-label="Cerrar ventana de revisión" class="modal-close-btn text-slate-300 hover:text-white hover:bg-white/10 text-2xl leading-none">&times;</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+                <div class="lg:col-span-7 flex flex-col space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-[#172B4D] flex items-center gap-1.5">
+                            <icon name="notepad-text" class="w-3.5 h-3.5 text-[#285EA8]" />
+                            Evidencias entregadas
+                        </span>
+
+                        <div class="flex items-center gap-2">
+                            <a id="btnRevAbrirPestana" href="#" target="_blank"
+                               class="hidden text-[11px] font-bold text-[#285EA8] hover:underline inline-flex items-center gap-1 bg-[#E9EFF6] px-2 py-1 rounded-md">
+                                <icon name="external-link" class="w-3 h-3 inline" />
+                                <span>Abrir en pestaña nueva</span>
+                            </a>
+                            <a id="btnRevDescargar" href="#"
+                               class="hidden text-[11px] font-bold text-slate-700 hover:bg-slate-200 inline-flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
+                                <icon name="download" class="w-3 h-3 inline" />
+                                <span>Descargar</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div id="revDocTabs" class="flex gap-1.5 overflow-x-auto pb-1 text-xs hidden"></div>
+
+                    <div class="w-full h-80 sm:h-96 rounded-md border border-[#DCE4ED] overflow-hidden bg-slate-50 relative">
+                        <iframe id="revIframe" title="Previsualización de documento probatorio" class="w-full h-full border-0 hidden"></iframe>
+                        <div id="revSinDocs" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-slate-400">
+                            <icon name="notepad-text" class="w-10 h-10 text-slate-300 mb-2" />
+                            <p class="text-xs font-bold text-[#172B4D]">No hay documentos previsualizables</p>
+                            <p class="text-[11px] text-[#64748B] mt-0.5">El docente aún no ha adjuntado archivos o es un formato no soportado en el visor en línea.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 flex flex-col justify-between space-y-3 bg-[#E9EFF6]/50 p-4 rounded-md border border-[#DCE4ED]">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-[#DCE4ED]">
+                            <span class="text-xs font-bold text-[#172B4D] uppercase tracking-wider">Estado actual:</span>
+                            <span id="revBadgeEstatus" class="px-2 py-0.5 rounded-sm text-xs font-bold bg-slate-200 text-slate-700">
+                                Pendiente
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="p-2 bg-white rounded-md border border-[#DCE4ED]">
+                                <p class="text-[10px] text-[#64748B] font-bold uppercase">Límite</p>
+                                <p class="font-bold text-[#172B4D] mt-0.5" id="revFechaLimite">-</p>
+                            </div>
+                            <div class="p-2 bg-white rounded-md border border-[#DCE4ED]">
+                                <p class="text-[10px] text-[#64748B] font-bold uppercase">Entregado</p>
+                                <p class="font-bold text-[#172B4D] mt-0.5" id="revFechaCumplimiento">-</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="text-xs font-bold text-[#172B4D] flex items-center justify-between">
+                                <span class="flex items-center gap-1.5">
+                                    <icon name="message-square-text" class="w-3.5 h-3.5 text-[#285EA8]" />
+                                    Diálogo y Aclaraciones:
+                                </span>
+                                <span class="text-[10px] text-[#64748B]" id="revChatCount">0 mensajes</span>
+                            </div>
+
+                            <div id="revChatHistorial" class="h-36 overflow-y-auto p-2 bg-white rounded-md border border-[#DCE4ED] space-y-2 text-xs" aria-live="polite">
+                                <p class="text-center text-slate-400 italic text-[11px] py-4">No hay mensajes previos.</p>
+                            </div>
+
+                            <div class="flex gap-1.5 pt-1">
+                                <label for="revNuevoMensaje" class="visually-hidden">Observación, confirmación o aclaración</label>
+                                <input type="text" id="revNuevoMensaje"
+                                       oninput="verificarTextoRevisionChat()"
+                                       onkeydown="if(event.key==='Enter'){ event.preventDefault(); if(event.isComposing || event.keyCode===229) return; enviarMensajeRevision(); }"
+                                       placeholder="Escribe una observación, confirmación o aclaración..."
+                                       class="flex-1 px-3 py-1.5 text-xs bg-white border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none transition" />
+                                <button type="button" id="btnRevEnviarMsg" onclick="enviarMensajeRevision()" disabled
+                                        class="px-3 py-1.5 bg-[#285EA8] hover:bg-[#172B4D] text-white text-xs font-bold rounded-md transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <span id="btnRevEnviarMsgTexto">Enviar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-[#DCE4ED]">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" id="btnRevAprobar" onclick="ejecutarAccionRevision('aprobar')"
+                                    class="py-2 px-3 bg-[#0F9F83] hover:bg-[#0D876F] text-white rounded-md text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                <icon name="check" class="w-3.5 h-3.5 text-white" />
+                                <span id="btnRevAprobarTexto">Aprobar Entrega</span>
+                            </button>
+
+                            <button type="button" id="btnRevRegresar" onclick="ejecutarAccionRevision('regresar')"
+                                    class="py-2 px-3 bg-[#D97745] hover:bg-[#C26535] text-white rounded-md text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                <icon name="rotate-ccw" class="w-3.5 h-3.5 text-white" />
+                                <span id="btnRevRegresarTexto">Regresar a Revisión</span>
+                            </button>
+                        </div>
+
+                        <div class="flex items-center justify-end pt-1">
+                            <button type="button" id="btnRevEliminar" onclick="ejecutarEliminarDesdeRevision()"
+                                    class="text-xs text-[#C2414B] hover:underline font-semibold inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                                <icon name="trash-2" class="w-3 h-3 text-[#C2414B]" />
+                                <span>Eliminar actividad</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </dialog>
+
+    <dialog id="modalReporteMensual" closedby="any" aria-labelledby="repTituloModal" class="w-full max-w-md rounded-lg select-none">
+        <div id="modalReporteContenido" class="bg-white w-full rounded-lg shadow-xl border border-[#DCE4ED] overflow-hidden">
+            <div class="px-5 py-3.5 bg-[#172B4D] text-white flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <icon name="calendar" class="w-4 h-4 text-white" />
+                    <div>
+                        <h3 id="repTituloModal" class="font-bold text-sm text-white">Exportar Reporte Mensual</h3>
+                        <p class="text-[11px] text-slate-300">Evidencias y cumplimiento por periodo</p>
+                    </div>
+                </div>
+                <button type="button" onclick="cerrarModalReporteMensual()" aria-label="Cerrar ventana de reporte mensual" class="modal-close-btn text-slate-300 hover:text-white hover:bg-white/10 text-2xl leading-none">&times;</button>
+            </div>
+
+            <form asp-controller="Docentes" asp-action="DescargarReporteMensual" method="get" class="p-5 space-y-4 text-xs">
+                <div>
+                    <label for="repAnio" class="block font-bold text-[#172B4D] mb-1">Año del periodo</label>
+                    <select name="anio" id="repAnio" class="w-full px-3 py-2 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none">
+                        <option value="@DateTime.Now.Year" selected>@DateTime.Now.Year (Actual)</option>
+                        <option value="@(DateTime.Now.Year - 1)">@(DateTime.Now.Year - 1)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="repMes" class="block font-bold text-[#172B4D] mb-1">Mes a exportar</label>
+                    <select name="mes" id="repMes" class="w-full px-3 py-2 text-xs bg-slate-50 border border-[#DCE4ED] rounded-md focus:ring-1 focus:ring-[#285EA8] outline-none">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            var fechaMes = new DateTime(2026, m, 1);
+                            var nombreMes = fechaMes.ToString("MMMM", new System.Globalization.CultureInfo("es-MX"));
+                            var esMesActual = (m == DateTime.Now.Month);
+                            if (esMesActual)
+                            {
+                                <option value="@m" selected>@char.ToUpper(nombreMes[0])@nombreMes.Substring(1)</option>
+                            }
+                            else
+                            {
+                                <option value="@m">@char.ToUpper(nombreMes[0])@nombreMes.Substring(1)</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="p-3 bg-[#E9EFF6] border border-[#DCE4ED] rounded-md text-[#172B4D] space-y-1">
+                    <p class="font-bold text-xs">Formato Excel UTF-8 (.CSV)</p>
+                    <p class="text-[11px] text-[#64748B]">Incluye matrícula, docente, título, estatus de entrega, fechas y comentarios de dirección.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-[#DCE4ED]">
+                    <button type="button" onclick="cerrarModalReporteMensual()"
+                            class="px-4 py-2 border border-[#DCE4ED] rounded-md text-[#64748B] hover:bg-slate-100 font-semibold transition text-xs">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#285EA8] hover:bg-[#172B4D] text-white rounded-md font-bold transition shadow-xs text-xs">
+                        <icon name="download" class="w-3.5 h-3.5 text-white" />
+                        <span>Descargar Reporte</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <script src="~/lib/gsap/gsap.min.js" asp-append-version="true"></script>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <form id="globalCsrfForm" class="hidden">@Html.AntiForgeryToken()</form>
+    }
+
+    <script>
+        function initGsapDropdowns() {
+            document.querySelectorAll('.dropdown-wrap').forEach(wrap => {
+                const trigger = wrap.querySelector('.dropdown-trigger');
+                const menu    = wrap.querySelector('.dropdown-menu');
+                const arrow   = wrap.querySelector('.dd-arrow');
+                const items   = wrap.querySelectorAll('.dropdown-item');
+
+                if (!trigger || !menu) return;
+
+                if (wrap.dataset.gsapBound) return;
+                wrap.dataset.gsapBound = "true";
+
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = menu.classList.contains('open');
+
+                    cerrarTodosLosDropdowns();
+
+                    if (!isOpen) {
+                        menu.classList.add('open');
+                        if (arrow) gsap.to(arrow, { rotation: 180, duration: 0.22, ease: 'power2.out' });
+                        gsap.fromTo(menu,
+                            { opacity: 0, y: -8, scale: 0.98 },
+                            { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: 'power2.out', clearProps: 'transform' }
+                        );
+                        if (items.length > 0) {
+                            gsap.fromTo(items,
+                                { opacity: 0, y: -4 },
+                                { opacity: 1, y: 0, duration: 0.15, stagger: 0.03, ease: 'power2.out', clearProps: 'transform,opacity' }
+                            );
+                        }
+                    }
+                });
+            });
+
+            document.addEventListener('click', () => {
+                cerrarTodosLosDropdowns();
+            });
+        }
+
+        function cerrarTodosLosDropdowns() {
+            document.querySelectorAll('.dropdown-menu.open').forEach(menu => {
+                const wrap = menu.closest('.dropdown-wrap');
+                const arrow = wrap ? wrap.querySelector('.dd-arrow') : null;
+                if (arrow) gsap.to(arrow, { rotation: 0, duration: 0.16, ease: 'power2.out' });
+                gsap.to(menu, {
+                    opacity: 0,
+                    y: -8,
+                    scale: 0.98,
+                    duration: 0.15,
+                    ease: 'power2.out',
+                    onComplete: () => menu.classList.remove('open')
+                });
+            });
+        }
+
+        const prefiereMovimientoReducido = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function initSidebar() {
+            if (typeof gsap !== 'undefined') {
+                gsap.defaults({ overwrite: 'auto' });
+            }
+
+            const sidebar = document.getElementById('mainSidebar');
+            if (!sidebar) return;
+
+            const isCollapsed = localStorage.getItem('siged_sidebar_collapsed') === 'true';
+            if (isCollapsed && window.innerWidth >= 1024) {
+                sidebar.classList.add('sidebar-collapsed');
+            }
+
+            if (window.innerWidth >= 1024 && typeof gsap !== 'undefined' && !prefiereMovimientoReducido()) {
+                gsap.fromTo('.sidebar-nav-item',
+                    { opacity: 0, x: -6 },
+                    { opacity: 1, x: 0, duration: 0.24, stagger: 0.025, ease: 'power3.out', clearProps: 'opacity,transform' }
+                );
+            }
+
+            initGsapDropdowns();
+        }
+
+        function toggleSidebarDesktop() {
+            const sidebar = document.getElementById('mainSidebar');
+            if (!sidebar) return;
+
+            const willCollapse = !sidebar.classList.contains('sidebar-collapsed');
+            if (willCollapse) {
+                sidebar.classList.add('sidebar-collapsed');
+                localStorage.setItem('siged_sidebar_collapsed', 'true');
+            } else {
+                sidebar.classList.remove('sidebar-collapsed');
+                localStorage.setItem('siged_sidebar_collapsed', 'false');
+                if (typeof gsap !== 'undefined' && !prefiereMovimientoReducido()) {
+                    gsap.fromTo('.sidebar-label',
+                        { opacity: 0 },
+                        { opacity: 1, duration: 0.18, ease: 'power2.out', clearProps: 'opacity' }
+                    );
+                }
+            }
+        }
+
+        function toggleSidebarMobile() {
+            const sidebar = document.getElementById('mainSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (!sidebar || !backdrop) return;
+
+            const isHidden = sidebar.classList.contains('-translate-x-full');
+            if (isHidden) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+                if (typeof gsap !== 'undefined' && !prefiereMovimientoReducido()) {
+                    gsap.fromTo(backdrop, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power2.out' });
+                    gsap.fromTo(sidebar, { xPercent: -100 }, { xPercent: 0, duration: 0.24, ease: 'power3.out', clearProps: 'transform' });
+                }
+            } else {
+                if (typeof gsap !== 'undefined' && !prefiereMovimientoReducido()) {
+                    gsap.to(backdrop, { opacity: 0, duration: 0.16, ease: 'power2.out' });
+                    gsap.to(sidebar, {
+                        xPercent: -100,
+                        duration: 0.18,
+                        ease: 'power3.out',
+                        onComplete: () => {
+                            gsap.set(sidebar, { clearProps: 'transform' });
+                            gsap.set(backdrop, { clearProps: 'opacity' });
+                            sidebar.classList.add('-translate-x-full');
+                            backdrop.classList.add('hidden');
+                        }
+                    });
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                    backdrop.classList.add('hidden');
+                }
+            }
+        }
+
+        let domPurifyPromise;
+        function loadDOMPurify() {
+            domPurifyPromise ??= import('https://cdn.jsdelivr.net/npm/dompurify@3.2.4/+esm').then((mod) => mod.default ?? mod);
+            return domPurifyPromise;
+        }
+
+        async function safeSetHTML(el, html) {
+            const elements = ['p', 'b', 'i', 'strong', 'em', 'span'];
+            const attributes = ['class'];
+            if ('setHTML' in Element.prototype) {
+                el.setHTML(html, { sanitizer: { elements, attributes } });
+            } else {
+                const DOMPurify = await loadDOMPurify();
+                el.innerHTML = DOMPurify.sanitize(html, {
+                    ALLOWED_TAGS: [...elements, '#text'],
+                    ALLOWED_ATTR: attributes,
+                    ALLOW_ARIA_ATTR: false,
+                    ALLOW_DATA_ATTR: false,
+                    KEEP_CONTENT: false
+                });
+            }
+        }
+
+        function abrirDialogoModal(dialog, contenido) {
+            if (!dialog) return;
+            if (!dialog.open) {
+                dialog.showModal();
+            }
+            if (contenido && typeof gsap !== 'undefined' && !prefiereMovimientoReducido()) {
+                gsap.fromTo(contenido, { opacity: 0, scale: 0.96, y: -8 }, { opacity: 1, scale: 1, y: 0, duration: 0.2, ease: 'power3.out', clearProps: 'transform,opacity' });
+            }
+        }
+
+        function cerrarDialogoModal(dialog, contenido, onComplete) {
+            if (!dialog || !dialog.open) return;
+            if (contenido && typeof gsap !== 'undefined' && !prefiereMovimientoReducido()) {
+                gsap.to(contenido, {
+                    opacity: 0,
+                    scale: 0.97,
+                    y: -6,
+                    duration: 0.14,
+                    ease: 'power2.out',
+                    onComplete: () => {
+                        dialog.close();
+                        gsap.set(contenido, { clearProps: 'opacity,transform' });
+                        if (typeof onComplete === 'function') onComplete();
+                    }
+                });
+            } else {
+                dialog.close();
+                if (typeof onComplete === 'function') onComplete();
+            }
+        }
+
+        function initDialogLightDismissFallback() {
+            for (const dialog of document.querySelectorAll('dialog')) {
+                dialog.addEventListener('close', () => {
+                    dialog.returnValue = '';
+                    if (dialog.id === 'modalRevision') {
+                        const iframe = document.getElementById('revIframe');
+                        if (iframe) iframe.src = '';
+                        actividadRevisionActualId = null;
+                    }
+                });
+            }
+
+            if (!('closedBy' in HTMLDialogElement.prototype)) {
+                const outside = (e, dialog) => {
+                    const r = dialog.getBoundingClientRect();
+                    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+                };
+                for (const dialog of document.querySelectorAll('dialog[closedby="any"]')) {
+                    let pressedOutside = false;
+                    dialog.addEventListener('pointerdown', (e) => { pressedOutside = outside(e, dialog); });
+                    dialog.addEventListener('pointerup', (e) => {
+                        if (pressedOutside && outside(e, dialog)) {
+                            if (typeof dialog._onLightDismiss === 'function') dialog._onLightDismiss();
+                            else dialog.close();
+                        }
+                    });
+                }
+            }
+        }
+
+        function abrirModalReporteMensual() {
+            const modal = document.getElementById('modalReporteMensual');
+            const contenido = document.getElementById('modalReporteContenido');
+            abrirDialogoModal(modal, contenido);
+        }
+
+        function cerrarModalReporteMensual() {
+            const modal = document.getElementById('modalReporteMensual');
+            const contenido = document.getElementById('modalReporteContenido');
+            cerrarDialogoModal(modal, contenido);
+        }
+
+        function abrirModalAsignarGlobal() {
+            if (typeof abrirModalAsignar === 'function') {
+                abrirModalAsignar();
+            } else {
+                window.location.href = '/Docentes/Index?openAssign=1';
+            }
+        }
+
+        let actividadRevisionActualId = null;
+
+        function verificarTextoRevisionChat() {
+            const input = document.getElementById('revNuevoMensaje');
+            const btn = document.getElementById('btnRevEnviarMsg');
+            if (!input || !btn) return;
+            const tieneTexto = input.value.trim().length > 0;
+            btn.disabled = !tieneTexto;
+            if (tieneTexto) {
+                btn.classList.remove('opacity-40', 'cursor-not-allowed');
+            } else {
+                btn.classList.add('opacity-40', 'cursor-not-allowed');
+            }
+        }
+
+        async function abrirModalRevision(actividadId) {
+            actividadRevisionActualId = actividadId;
+            const modal = document.getElementById('modalRevision');
+            const contenido = document.getElementById('modalRevisionContenido');
+            if (!modal || !contenido) return;
+
+            document.getElementById('revTitulo').textContent = 'Cargando información...';
+            document.getElementById('revDocente').textContent = '';
+            document.getElementById('revIframe').classList.add('hidden');
+            document.getElementById('revIframe').src = '';
+            document.getElementById('revSinDocs').classList.remove('hidden');
+            document.getElementById('btnRevAbrirPestana').classList.add('hidden');
+            document.getElementById('btnRevDescargar').classList.add('hidden');
+            document.getElementById('revChatHistorial').innerHTML = '<p class="text-center text-slate-400 italic text-[11px] py-4">Cargando comentarios...</p>';
+            
+            const chatInput = document.getElementById('revNuevoMensaje');
+            if (chatInput) chatInput.value = '';
+            verificarTextoRevisionChat();
+
+            const btnAprobar = document.getElementById('btnRevAprobar');
+            const btnRegresar = document.getElementById('btnRevRegresar');
+            const btnEliminar = document.getElementById('btnRevEliminar');
+
+            if (btnAprobar) {
+                btnAprobar.disabled = false;
+                btnAprobar.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnAprobar.title = 'Aprobar entrega de evidencia';
+                const txt = document.getElementById('btnRevAprobarTexto');
+                if (txt) txt.textContent = 'Aprobar Entrega';
+            }
+            if (btnRegresar) {
+                btnRegresar.disabled = false;
+                btnRegresar.classList.remove('opacity-40', 'cursor-not-allowed');
+                btnRegresar.title = 'Regresar al docente para correcciones';
+                const txt = document.getElementById('btnRevRegresarTexto');
+                if (txt) txt.textContent = 'Regresar a Revisión';
+            }
+            if (btnEliminar) {
+                btnEliminar.disabled = false;
+                btnEliminar.classList.remove('opacity-40', 'cursor-not-allowed');
+            }
+
+            abrirDialogoModal(modal, contenido);
+
+            try {
+                const resp = await fetch(`/Docentes/GetDetalleActividad?id=${actividadId}`);
+                const data = await resp.json();
+                if (!data.success) {
+                    alert('No se pudo cargar la actividad.');
+                    cerrarModalRevision();
+                    return;
+                }
+
+                document.getElementById('revTitulo').textContent = data.titulo;
+                document.getElementById('revDocente').textContent = `${data.docenteNombre} (${data.docenteClave}) · ${data.docenteContrato}`;
+                document.getElementById('revFechaLimite').textContent = data.fechaLimite;
+                document.getElementById('revFechaCumplimiento').textContent = data.fechaCumplimiento || 'Pendiente';
+
+                const badge = document.getElementById('revBadgeEstatus');
+                badge.textContent = data.estatus;
+                if (data.estatus === 'Cumplido') {
+                    badge.className = 'px-2 py-0.5 rounded-sm text-xs font-bold bg-emerald-50 text-[#0F9F83] border border-[#0F9F83]/30';
+                    if (btnAprobar) {
+                        btnAprobar.disabled = true;
+                        btnAprobar.classList.add('opacity-40', 'cursor-not-allowed');
+                        btnAprobar.title = 'Esta actividad ya ha sido aprobada y marcada como cumplida';
+                    }
+                } else if (data.estatus === 'En revision') {
+                    badge.className = 'px-2 py-0.5 rounded-sm text-xs font-bold bg-blue-50 text-[#285EA8] border border-[#285EA8]/30';
+                } else {
+                    badge.className = 'px-2 py-0.5 rounded-sm text-xs font-bold bg-amber-50 text-[#D97745] border border-[#D97745]/30';
+                    if (btnRegresar) {
+                        btnRegresar.disabled = true;
+                        btnRegresar.classList.add('opacity-40', 'cursor-not-allowed');
+                        btnRegresar.title = 'La actividad aún se encuentra en estatus pendiente de entrega';
+                    }
+                }
+
+                const tabsCont = document.getElementById('revDocTabs');
+                tabsCont.innerHTML = '';
+                if (data.documentos && data.documentos.length > 0) {
+                    tabsCont.classList.remove('hidden');
+                    data.documentos.forEach((doc, idx) => {
+                        const btnTab = document.createElement('button');
+                        btnTab.type = 'button';
+                        btnTab.className = `px-2 py-1 rounded-sm text-xs font-bold truncate max-w-[150px] transition ${idx === 0 ? 'bg-[#285EA8] text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-[#DCE4ED]'}`;
+                        btnTab.textContent = doc.nombreOriginal;
+                        btnTab.onclick = () => seleccionarDocumentoRevision(doc, btnTab);
+                        tabsCont.appendChild(btnTab);
+                    });
+                    seleccionarDocumentoRevision(data.documentos[0], tabsCont.children[0]);
+                } else {
+                    tabsCont.classList.add('hidden');
+                    document.getElementById('revIframe').classList.add('hidden');
+                    document.getElementById('revSinDocs').classList.remove('hidden');
+                }
+
+                renderizarComentariosRevision(data.comentarios || []);
+            } catch (err) {
+                alert('Error al obtener los detalles de la actividad.');
+            }
+        }
+
+        function renderizarComentariosRevision(comentarios) {
+            const chatCont = document.getElementById('revChatHistorial');
+            const chatCount = document.getElementById('revChatCount');
+            chatCount.textContent = `${comentarios.length} mensaje(s)`;
+
+            if (!comentarios || comentarios.length === 0) {
+                chatCont.innerHTML = '<p class="text-center text-slate-400 italic text-[11px] py-4">No hay observaciones previas registradas.</p>';
+                return;
+            }
+
+            chatCont.innerHTML = '';
+            comentarios.forEach(c => {
+                const esDirector = c.rolAutor === 'Administrador';
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `flex flex-col ${esDirector ? 'items-start' : 'items-end'} space-y-0.5`;
+
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'flex items-center gap-1.5 text-[10px]';
+
+                const autorSpan = document.createElement('span');
+                autorSpan.className = `font-bold ${esDirector ? 'text-[#172B4D]' : 'text-[#0F9F83]'}`;
+                autorSpan.textContent = c.autorNombre ?? '';
+
+                const fechaSpan = document.createElement('span');
+                fechaSpan.className = 'text-slate-400';
+                fechaSpan.textContent = c.fecha ?? '';
+
+                metaDiv.append(autorSpan, fechaSpan);
+
+                const bodyDiv = document.createElement('div');
+                bodyDiv.className = `p-2 rounded-md max-w-[90%] text-xs ${esDirector ? 'bg-[#E9EFF6] text-[#172B4D] border border-[#DCE4ED]' : 'bg-emerald-50 text-emerald-950 border border-[#0F9F83]/30'}`;
+                bodyDiv.textContent = c.mensaje ?? '';
+
+                msgDiv.append(metaDiv, bodyDiv);
+                chatCont.appendChild(msgDiv);
+            });
+
+            chatCont.scrollTop = chatCont.scrollHeight;
+        }
+
+        async function enviarMensajeRevision() {
+            if (!actividadRevisionActualId) return;
+            const input = document.getElementById('revNuevoMensaje');
+            const btn = document.getElementById('btnRevEnviarMsg');
+            const txt = document.getElementById('btnRevEnviarMsgTexto');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-40', 'cursor-not-allowed');
+                if (txt) txt.textContent = 'Enviando...';
+            }
+
+            try {
+                const resp = await fetch('/Docentes/AgregarComentario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ actividadId: actividadRevisionActualId, mensaje: texto })
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    input.value = '';
+                    verificarTextoRevisionChat();
+                    const r = await fetch(`/Docentes/GetDetalleActividad?id=${actividadRevisionActualId}`);
+                    const d = await r.json();
+                    if (d.success) renderizarComentariosRevision(d.comentarios || []);
+                } else {
+                    alert(res.message || 'Error al enviar mensaje');
+                }
+            } catch {
+                alert('Error al conectar con el servidor.');
+            } finally {
+                if (txt) txt.textContent = 'Enviar';
+                verificarTextoRevisionChat();
+            }
+        }
+
+        function seleccionarDocumentoRevision(doc, btnActivo) {
+            const tabs = document.querySelectorAll('#revDocTabs button');
+            tabs.forEach(t => {
+                t.className = 'px-2 py-1 rounded-sm text-xs font-bold truncate max-w-[150px] bg-slate-100 text-slate-700 hover:bg-slate-200 border border-[#DCE4ED] transition';
+            });
+            if (btnActivo) {
+                btnActivo.className = 'px-2 py-1 rounded-sm text-xs font-bold truncate max-w-[150px] bg-[#285EA8] text-white shadow-xs transition';
+            }
+
+            const iframe = document.getElementById('revIframe');
+            const sinDocs = document.getElementById('revSinDocs');
+            const btnAbrir = document.getElementById('btnRevAbrirPestana');
+            const btnDesc = document.getElementById('btnRevDescargar');
+
+            btnAbrir.href = doc.previewUrl;
+            btnAbrir.classList.remove('hidden');
+            btnDesc.href = doc.downloadUrl;
+            btnDesc.classList.remove('hidden');
+
+            if (doc.esPrevisualizable) {
+                iframe.src = doc.previewUrl;
+                iframe.classList.remove('hidden');
+                sinDocs.classList.add('hidden');
+            } else {
+                iframe.src = '';
+                iframe.classList.add('hidden');
+                sinDocs.classList.remove('hidden');
+                sinDocs.querySelector('p').textContent = `Archivo descargable: ${doc.nombreOriginal}`;
+            }
+        }
+
+        function cerrarModalRevision() {
+            const modal = document.getElementById('modalRevision');
+            const contenido = document.getElementById('modalRevisionContenido');
+            cerrarDialogoModal(modal, contenido, () => {
+                document.getElementById('revIframe').src = '';
+                actividadRevisionActualId = null;
+            });
+        }
+
+        async function ejecutarAccionRevision(accion) {
+            if (!actividadRevisionActualId) return;
+            const nuevoMsg = document.getElementById('revNuevoMensaje').value.trim();
+
+            const btnAprobar = document.getElementById('btnRevAprobar');
+            const btnRegresar = document.getElementById('btnRevRegresar');
+            const btnEliminar = document.getElementById('btnRevEliminar');
+
+            if (btnAprobar) {
+                btnAprobar.disabled = true;
+                btnAprobar.classList.add('opacity-40', 'cursor-not-allowed');
+                if (accion === 'aprobar') {
+                    const txt = document.getElementById('btnRevAprobarTexto');
+                    if (txt) txt.textContent = 'Aprobando...';
+                }
+            }
+            if (btnRegresar) {
+                btnRegresar.disabled = true;
+                btnRegresar.classList.add('opacity-40', 'cursor-not-allowed');
+                if (accion === 'regresar') {
+                    const txt = document.getElementById('btnRevRegresarTexto');
+                    if (txt) txt.textContent = 'Regresando...';
+                }
+            }
+            if (btnEliminar) {
+                btnEliminar.disabled = true;
+                btnEliminar.classList.add('opacity-40', 'cursor-not-allowed');
+            }
+
+            try {
+                const resp = await fetch('/Docentes/RevisarActividad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        actividadId: actividadRevisionActualId,
+                        accion: accion,
+                        comentario: nuevoMsg
+                    })
+                });
+                const res = await resp.json();
+                if (res.success) {
+                    cerrarModalRevision();
+                    window.location.reload();
+                } else {
+                    alert(res.message || 'Error al procesar la revisión.');
+                    if (btnAprobar) {
+                        btnAprobar.disabled = false;
+                        btnAprobar.classList.remove('opacity-40', 'cursor-not-allowed');
+                        const txt = document.getElementById('btnRevAprobarTexto');
+                        if (txt) txt.textContent = 'Aprobar Entrega';
+                    }
+                    if (btnRegresar) {
+                        btnRegresar.disabled = false;
+                        btnRegresar.classList.remove('opacity-40', 'cursor-not-allowed');
+                        const txt = document.getElementById('btnRevRegresarTexto');
+                        if (txt) txt.textContent = 'Regresar a Revisión';
+                    }
+                    if (btnEliminar) {
+                        btnEliminar.disabled = false;
+                        btnEliminar.classList.remove('opacity-40', 'cursor-not-allowed');
+                    }
+                }
+            } catch {
+                alert('Error de conexión al guardar la revisión.');
+                if (btnAprobar) {
+                    btnAprobar.disabled = false;
+                    btnAprobar.classList.remove('opacity-40', 'cursor-not-allowed');
+                    const txt = document.getElementById('btnRevAprobarTexto');
+                    if (txt) txt.textContent = 'Aprobar Entrega';
+                }
+                if (btnRegresar) {
+                    btnRegresar.disabled = false;
+                    btnRegresar.classList.remove('opacity-40', 'cursor-not-allowed');
+                    const txt = document.getElementById('btnRevRegresarTexto');
+                    if (txt) txt.textContent = 'Regresar a Revisión';
+                }
+                if (btnEliminar) {
+                    btnEliminar.disabled = false;
+                    btnEliminar.classList.remove('opacity-40', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        async function ejecutarEliminarDesdeRevision() {
+            if (!actividadRevisionActualId) return;
+            const titulo = document.getElementById('revTitulo').textContent;
+            if (!confirm(`¿Eliminar la actividad "${titulo}"? Se eliminarán también sus documentos adjuntos.`)) return;
+
+            const btnEliminar = document.getElementById('btnRevEliminar');
+            const btnAprobar = document.getElementById('btnRevAprobar');
+            const btnRegresar = document.getElementById('btnRevRegresar');
+
+            if (btnEliminar) {
+                btnEliminar.disabled = true;
+                btnEliminar.classList.add('opacity-40', 'cursor-not-allowed');
+            }
+            if (btnAprobar) {
+                btnAprobar.disabled = true;
+                btnAprobar.classList.add('opacity-40', 'cursor-not-allowed');
+            }
+            if (btnRegresar) {
+                btnRegresar.disabled = true;
+                btnRegresar.classList.add('opacity-40', 'cursor-not-allowed');
+            }
+
+            try {
+                const resp = await fetch(`/Docentes/EliminarActividad?id=${actividadRevisionActualId}`, { method: 'POST' });
+                const res = await resp.json();
+                if (res.success) {
+                    cerrarModalRevision();
+                    window.location.reload();
+                } else {
+                    alert(res.message || 'Error al eliminar.');
+                    if (btnEliminar) {
+                        btnEliminar.disabled = false;
+                        btnEliminar.classList.remove('opacity-40', 'cursor-not-allowed');
+                    }
+                }
+            } catch {
+                alert('Error al conectar con el servidor.');
+                if (btnEliminar) {
+                    btnEliminar.disabled = false;
+                    btnEliminar.classList.remove('opacity-40', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSidebar();
+            initDialogLightDismissFallback();
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
